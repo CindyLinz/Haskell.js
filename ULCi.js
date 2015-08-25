@@ -5,17 +5,17 @@ function str_times(str, n){
   return out;
 }
 
-function pretty(expr, indent, in_in){
+function pretty(expr, indent){
   var out = '', i;
   switch(expr[0]){
     case 'lam':
-      return '\\' + expr[1] + '. ' + pretty(expr[2], indent, false);
+      return '\\' + expr[1] + ' ' + pretty(expr[2], indent);
 
     case 'var':
       return expr[1];
 
     case 'app':
-      return (expr[1][0]==='var' ? '' : '(') + pretty(expr[1], indent, false) + (expr[1][0]==='var' ? '' : ')') + ' ' + (expr[2][0]==='var' ? '' : '(') + pretty(expr[2], indent, false) + (expr[2][0]==='var' ? '' : ')');
+      return (expr[1][0]==='var' ? '' : '(') + pretty(expr[1], indent) + (expr[1][0]==='var' ? '' : ')') + ' ' + (expr[2][0]==='var' ? '' : '(') + pretty(expr[2], indent) + (expr[2][0]==='var' ? '' : ')');
   }
 }
 
@@ -71,14 +71,14 @@ function subs(expr, symbol, value){
 
   console.log('');
   console.log('subs:');
-  console.log('  ' + pretty(expr, 1, true));
+  console.log('  ' + pretty(expr, 1));
   console.log('  [' + symbol + ']');
-  console.log('  ' + pretty(value, 1, true));
+  console.log('  ' + pretty(value, 1));
   var new_expr = _subs(expr, symbol, value);
   console.log('  ==');
-  console.log('  ' + pretty(expr, 1, true));
+  console.log('  ' + pretty(expr, 1));
   console.log('  --');
-  console.log('  ' + pretty(new_expr, 1, true));
+  console.log('  ' + pretty(new_expr, 1));
   return new_expr;
 }
 
@@ -104,7 +104,7 @@ function weak_normal_form(expr){
 
   console.log('');
   console.log('weak_normal_form:');
-  console.log('  ' + pretty(expr, 1, true));
+  console.log('  ' + pretty(expr, 1));
   return _weak_normal_form(expr);
 }
 
@@ -130,7 +130,7 @@ function normal_form(expr){
 
   console.log('');
   console.log('normal_form:');
-  console.log('  ' + pretty(expr, 1, true));
+  console.log('  ' + pretty(expr, 1));
   return _normal_form(expr);
 }
 
@@ -172,7 +172,7 @@ var prog =
 
     // ['app', ['app', ['var', 'take'], ['var', '3']], ['app', ['app', ['var', 'drop'], ['var', '2']], ['var', 'list-0-1-']]] // take 3 (drop 2 [0,1,2..])
     // ['app', ['app', ['var', 'take'], ['var', '6']], ['var', 'fibs']] // take 6 fibs
-    ['app', ['app', ['var', 'take'], ['var', '6']], ['app', ['app', ['var', 'map'], ['var', '*2']], ['var', 'list-0-1-']]] // take 6 (map (*2) [0,1,2..])
+    ['app', ['app', ['var', 'take'], ['app', ['var', '*2'], ['app', ['var', '*2'], ['var', '6']]]], ['app', ['app', ['var', 'map'], ['var', '*2']], ['var', 'list-0-1-']]] // take 6 (map (*2) [0,1,2..])
 
   ], ['app', ['var', 'fix'], ['lam', 'unfix-fibs', ['app', ['lam', 'fibs', ['app', ['app', ['var', 'cons'], ['var', '1']], ['app', ['app', ['var', 'cons'], ['var', '1']], ['app', ['app', ['app', ['var', 'zip-with'], ['var', '+']], ['var', 'fibs']], ['app', ['var', 'tail'], ['var', 'fibs']]]]]], ['app', ['var', 'unfix-fibs'], ['var', 'unfix-fibs']]]]]] // fibs
   ], ['app', ['app', ['var', 'fix'], ['lam', 'gen', ['lam', 'i', ['app', ['app', ['var', 'cons'], ['var', 'i']], ['app', ['app', ['var', 'gen'], ['var', 'gen']], ['app', ['var', '+1'], ['var', 'i']]]]]]], ['var', '0']]], // list-0-1-
@@ -209,5 +209,5 @@ var prog =
   ], ['lam', 'a', ['lam', 'b', ['var', 'a']]]] // true
   ;
 
-console.log(pretty(prog, 0, true));
-console.log(pretty(normal_form(prog, {}), 0, true));
+console.log(pretty(prog, 0));
+console.log(pretty(normal_form(prog, {}), 0));
