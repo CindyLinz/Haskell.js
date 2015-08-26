@@ -1,119 +1,61 @@
 var util = require('./ULC-util.js');
 var pretty = util.pretty;
+var pretty_closure = util.pretty_closure;
 
-var last_fresh_symbol = 0;
-function fresh_symbol(){
-  ++last_fresh_symbol;
-  return '_' + last_fresh_symbol;
+function clone_env(env){
+  var ctor = new Function;
+  ctor.prototype = env;
+  return new ctor;
 }
 
-function scan(expr, symbol){
-  var i;
-  switch(expr[0]){
+function weak_normal_form(closure){
+  //console.log('weak_normal_form');
+  //console.log(pretty_closure(closure, 1));
+  var lam, env2;
+  switch(closure.expr[0]){
     case 'var':
-      return expr[1]===symbol;
+      if( closure.env[closure.expr[1]] )
+        return weak_normal_form(closure.env[closure.expr[1]]);
+      else
+        return closure;
 
     case 'lam':
-      if( expr[1]===symbol )
-        return false;
-      else
-        return scan(expr[2], symbol);
+      return closure;
 
     case 'app':
-      return scan(expr[1], symbol) || scan(expr[2], symbol);
+      lam = weak_normal_form({expr: closure.expr[1], env: closure.env});
+      if( lam.expr[0]!='lam' )
+        return {expr: ['app', lam.expr, normal_form({expr: closure.expr[2], env: closure.env}).expr], env: closure.env};
+      env2 = clone_env(lam.env);
+      env2[lam.expr[1]] = {expr: closure.expr[2], env: closure.env};
+      return weak_normal_form({expr: lam.expr[2], env: env2});
   }
 }
-function _subs(expr, symbol, value){
-  var i, out, new_symbol;
-  switch(expr[0]){
+
+function normal_form(closure){
+  //console.log('normal_form');
+  //console.log(pretty_closure(closure, 1));
+  var lam, env2;
+  switch(closure.expr[0]){
     case 'var':
-      if( expr[1]===symbol )
-        return value;
+      if( closure.env[closure.expr[1]] )
+        return normal_form(closure.env[closure.expr[1]]);
       else
-        return expr;
+        return closure;
 
     case 'lam':
-      if( expr[1]===symbol )
-        return expr;
-      else{
-        if( scan(value, expr[1]) ){
-          new_symbol = fresh_symbol();
-          expr[2] = subs(expr[2], expr[1], ['var', new_symbol]);
-          expr[1] = new_symbol;
-        }
-        return ['lam', expr[1], subs(expr[2], symbol, value)];
-      }
+      env2 = clone_env(closure.env);
+      env2[closure.expr[1]] = false;
+      return {expr: ['lam', closure.expr[1], normal_form({expr: closure.expr[2], env: env2}).expr], env: closure.env};
 
     case 'app':
-      return ['app', subs(expr[1], symbol, value), subs(expr[2], symbol, value)];
+      lam = weak_normal_form({expr: closure.expr[1], env: closure.env});
+      if( lam.expr[0]!='lam' )
+        return {expr: ['app', lam.expr, normal_form({expr: closure.expr[2], env: closure.env}).expr], env: closure.env};
+      env2 = clone_env(lam.env);
+      env2[lam.expr[1]] = {expr: closure.expr[2], env: closure.env};
+      return normal_form({expr: lam.expr[2], env: env2});
   }
-}
-function subs(expr, symbol, value){
-  return _subs(expr, symbol, value);
-
-  console.log('');
-  console.log('subs:');
-  console.log('  ' + pretty(expr, 1));
-  console.log('  [' + symbol + ']');
-  console.log('  ' + pretty(value, 1));
-  var new_expr = _subs(expr, symbol, value);
-  console.log('  ==');
-  console.log('  ' + pretty(expr, 1));
-  console.log('  --');
-  console.log('  ' + pretty(new_expr, 1));
-  return new_expr;
-}
-
-function _weak_normal_form(expr){
-  var lam, out, new_let, need;
-  switch(expr[0]){
-    case 'var':
-      return expr;
-
-    case 'lam':
-      return expr;
-
-    case 'app':
-      lam = weak_normal_form(expr[1]);
-      if( lam[0]==='lam' )
-        return weak_normal_form(subs(lam[2], lam[1], expr[2]));
-      else
-        return ['app', lam, expr[2]];
-  }
-}
-function weak_normal_form(expr){
-  return _weak_normal_form(expr);
-
-  console.log('');
-  console.log('weak_normal_form:');
-  console.log('  ' + pretty(expr, 1));
-  return _weak_normal_form(expr);
-}
-
-function _normal_form(expr){
-  var lam, out, new_let, need;
-  switch(expr[0]){
-    case 'var':
-      return expr;
-
-    case 'lam':
-      return ['lam', expr[1], normal_form(expr[2])];
-
-    case 'app':
-      lam = weak_normal_form(expr[1]);
-      if( lam[0]==='lam' )
-        return normal_form(subs(lam[2], lam[1], expr[2]));
-      else
-        return ['app', normal_form(lam), normal_form(expr[2])];
-  }
-}
-function normal_form(expr){
-  return _normal_form(expr);
-
-  console.log('');
-  console.log('normal_form:');
-  console.log('  ' + pretty(expr, 1));
-  return _normal_form(expr);
 }
 
 var prog =
@@ -152,9 +94,14 @@ var prog =
   ['app', ['lam', 'list-0-1-', // [0,1,2,3,...]
   ['app', ['lam', 'fibs', // [1,1,2,3,5,8,...]
 
-    // ['app', ['app', ['var', 'take'], ['var', '3']], ['app', ['app', ['var', 'drop'], ['var', '2']], ['var', 'list-0-1-']]] // take 3 (drop 2 [0,1,2..])
-    // ['app', ['app', ['var', 'take'], ['var', '6']], ['var', 'fibs']] // take 6 fibs
-    ['app', ['app', ['var', 'take'], ['app', ['var', '*2'], ['app', ['var', '*2'], ['var', '6']]]], ['app', ['app', ['var', 'map'], ['var', '*2']], ['var', 'list-0-1-']]] // take 6 (map (*2) [0,1,2..])
+    //['app', ['app', ['var', '+'], ['var', '2']], ['var', '1']]
+    //['app', ['var', 'head'], ['app', ['var', 'tail'], ['var', 'list-0-1-']]]
+    //['app', ['app', ['var', 'take'], ['var', '1']], ['var', 'list-0-1-']]
+    //['app', ['app', ['var', 'take'], ['var', '1']], ['app', ['app', ['var', 'cons'], ['var', '1']], ['var', 'nil']]]
+
+    //['app', ['app', ['var', 'take'], ['var', '3']], ['app', ['app', ['var', 'drop'], ['var', '2']], ['var', 'list-0-1-']]] // take 3 (drop 2 [0,1,2..])
+    ['app', ['app', ['var', 'take'], ['var', '6']], ['var', 'fibs']] // take 6 fibs
+    //['app', ['app', ['var', 'take'], ['app', ['var', '*2'], ['app', ['var', '*2'], ['var', '6']]]], ['app', ['app', ['var', 'map'], ['var', '*2']], ['var', 'list-0-1-']]] // take 6 (map (*2) [0,1,2..])
 
   ], ['app', ['var', 'fix'], ['lam', 'unfix-fibs', ['app', ['lam', 'fibs', ['app', ['app', ['var', 'cons'], ['var', '1']], ['app', ['app', ['var', 'cons'], ['var', '1']], ['app', ['app', ['app', ['var', 'zip-with'], ['var', '+']], ['var', 'fibs']], ['app', ['var', 'tail'], ['var', 'fibs']]]]]], ['app', ['var', 'unfix-fibs'], ['var', 'unfix-fibs']]]]]] // fibs
   ], ['app', ['app', ['var', 'fix'], ['lam', 'gen', ['lam', 'i', ['app', ['app', ['var', 'cons'], ['var', 'i']], ['app', ['app', ['var', 'gen'], ['var', 'gen']], ['app', ['var', '+1'], ['var', 'i']]]]]]], ['var', '0']]], // list-0-1-
@@ -192,13 +139,13 @@ var prog =
   ;
 
 //console.log(pretty(prog, 0));
-//console.log(pretty(normal_form(prog), 0));
+//console.log(pretty(normal_form({expr: prog, env: {}}).expr, 0));
 
 var code = '';
 process.stdin.on('data', function(chunk){
   code += chunk;
 });
 process.stdin.on('end', function(){
-  console.log(JSON.stringify(normal_form(JSON.parse(code))));
+  console.log(JSON.stringify(normal_form({expr: JSON.parse(code), env: {}}).expr));
   process.exit();
 });

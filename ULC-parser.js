@@ -93,6 +93,14 @@ function parse(expr){
   return take_node1();
 }
 
-var code = 'fix (\\unfix-fibs (\\fibs cons 1 (cons 1 (zip-with + fibs (tail fibs)))) (unfix-fibs unfix-fibs))';
-console.log(code);
-console.log(JSON.stringify(parse(code)));
+//var code = 'fix (\\unfix-fibs (\\fibs cons 1 (cons 1 (zip-with + fibs (tail fibs)))) (unfix-fibs unfix-fibs))';
+//console.log(code);
+//console.log(JSON.stringify(parse(code)));
+var code = '';
+process.stdin.on('data', function(chunk){
+  code += chunk;
+});
+process.stdin.on('end', function(){
+  console.log(JSON.stringify(parse(code)));
+  process.exit();
+});
