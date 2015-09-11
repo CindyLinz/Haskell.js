@@ -1,0 +1,67 @@
+(\true
+(\false
+
+(\0
+(\1
+(\2
+(\3
+(\4
+(\5
+(\6
+(\7
+(\8
+(\9
+(\10
+
+(\-1
+(\-1'
+(\-1''
+(\+1
+
+(\=0
+
+(\Y
+
+(\+'
+(\+
+(\-
+(\*
+
+(\nil
+(\cons
+(\head
+
+    -1 1
+
+)(\ls (\a as a) 0)
+)(\a \as \f \x f a (as f x))
+)(\f \x x)
+
+)(\n \m n (+ m) 0)
+)(\n \m m -1 n)
+)(\n \m \f \x n f (m f x))
+)(Y \+ \n \m =0 n m (+ (-1 n) (+1 m)))
+
+)(\f (\x f (x x)) (\x f (x x)))
+
+)(\n n (\_ \a \b b) (\a \b a))
+
+)(\n \f \x f (n f x))
+)(\n n (\k k (\_ true) true (+1 k) 0) (\_ \_ false))
+)(\n n (\k k (\t t) true (+1 k) 0) (\_ \_ false))
+)(\n n (\k k (\t t) (\a \b a) (\f \x f (k f x)) (\f \x x)) (\_ \_ \a \b b))
+
+)(\f \x f (f (f (f (f (f (f (f (f (f x))))))))))
+)(\f \x f (f (f (f (f (f (f (f (f x)))))))))
+)(\f \x f (f (f (f (f (f (f (f x))))))))
+)(\f \x f (f (f (f (f (f (f x)))))))
+)(\f \x f (f (f (f (f (f x))))))
+)(\f \x f (f (f (f (f x)))))
+)(\f \x f (f (f (f x))))
+)(\f \x f (f (f x)))
+)(\f \x f (f x))
+)(\f \x f x)
+)(\f \x x)
+
+)(\a \b b)
+)(\a \b a)
