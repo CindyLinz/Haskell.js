@@ -1,0 +1,60 @@
+(\Y
+(\bottom
+
+(\>>=
+(\>>
+(\return
+
+(\,
+(\cons
+(\nil
+(\head
+(\tail
+
+(\++
+(\take
+(\zip-with
+(\show-list
+
+(\fibs
+
+(\putStrLn
+(\putStrLn'
+
+(\gcd
+
+(\hello-world
+
+   >> (putStrLn' hello-world)
+  (>> (putStrLn' (show-int (+ 10 20)))
+  (>> (putStrLn' (show-list (take 20 fibs)))
+  (>> (putStrLn' (show-int (* (read-int (show-int 15)) (read-int (show-int 9)))))
+      (>>= getLine \a >>= getLine \b putStrLn' (show-int (gcd (read-int a) (read-int b))))
+  )))
+
+)(cons 'h' (cons 'e' (cons 'l' (cons 'l' (cons 'o' (cons '-' (cons 'w' (cons 'o' (cons 'r' (cons 'l' (cons 'd' nil)))))))))))
+
+)(Y \gcd \a \b == 0 b a (gcd b (% a b)))
+
+)(Y \putStrLn' \str str (\ch \str- >> (putChar ch) (putStrLn' str-)) (putChar '$n'))
+)(Y \putStrLn \str \s str (\ch \str- putChar ch s (\s' \_ putStrLn str- s')) (putChar '$n' s))
+
+)(Y \fibs cons 1 (cons 1 (zip-with + fibs (tail fibs))))
+
+)(Y \show-list \ls ls (\a \as ++ (show-int a) (cons ':' (show-list as))) (cons '[' (cons ']' nil)))
+)(\f Y \go \as \bs as (\a \as- bs (\b \bs- cons (f a b) (go as- bs-)) nil) nil)
+)(Y \take \n \ls <= n 0 nil (ls (\a \as cons a (take (- n 1) as)) nil))
+)(Y \++ \as \bs as (\a \as- cons a (++ as- bs)) bs)
+
+)(\ls ls (\a \as as) bottom)
+)(\ls ls (\a \as a) bottom)
+)(\is-cons \is-nil is-nil)
+)(\a \as \is-cons \is-nil is-cons a as)
+)(\a \b \p p a b)
+
+)(\a \s \cont cont s a)
+)(\k \f \s k s (\s' \_ f s'))
+)(\k \f \s k s (\s' \a f a s'))
+
+)(Y \bottom bottom)
+)(\f (\x f (x x)) (\x f (x x)))
