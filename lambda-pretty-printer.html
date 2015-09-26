@@ -1,0 +1,19 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>Lambda pretty printer</title>
+    </head>
+    <body>
+        Source:<br>
+        <textarea id=source style=width:90%;height:400px>
+["app",["lam","Y",["app",["lam","bottom",["app",["lam","+1",["app",["lam","0",["app",["lam","1",["app",["lam","2",["app",["lam","3",["app",["lam","4",["app",["lam","5",["app",["lam","6",["app",["lam","7",["app",["lam","8",["app",["lam","9",["app",["lam","10",["app",["lam","+",["app",["lam","*",["app",["lam","nil",["app",["lam","cons",["app",["lam","tail",["app",["lam","take",["app",["lam","zip-with",["app",["lam","fibs",["app",["app",["var","take"],["var","5"]],["var","fibs"]]],["app",["var","Y"],["lam","fibs",["app",["app",["var","cons"],["var","1"]],["app",["app",["var","cons"],["var","1"]],["app",["app",["app",["var","zip-with"],["var","+"]],["var","fibs"]],["app",["var","tail"],["var","fibs"]]]]]]]]],["lam","f",["app",["var","Y"],["lam","zip-with",["lam","as",["lam","bs",["app",["app",["var","as"],["lam","a",["lam","as-",["app",["app",["var","bs"],["lam","b",["lam","bs-",["app",["app",["var","cons"],["app",["app",["var","f"],["var","a"]],["var","b"]]],["app",["app",["var","zip-with"],["var","as-"]],["var","bs-"]]]]]],["var","nil"]]]]],["var","nil"]]]]]]]]],["app",["var","Y"],["lam","take",["lam","n",["lam","ls",["app",["app",["var","n"],["lam","n-",["app",["app",["var","ls"],["lam","a",["lam","as",["app",["app",["var","cons"],["var","a"]],["app",["app",["var","take"],["var","n-"]],["var","as"]]]]]],["var","nil"]]]],["var","nil"]]]]]]]],["lam","ls",["app",["app",["var","ls"],["lam","a",["lam","as",["var","as"]]]],["var","bottom"]]]]],["lam","a",["lam","as",["lam","is-cons",["lam","is-nil",["app",["app",["var","is-cons"],["var","a"]],["var","as"]]]]]]]],["lam","is-cons",["lam","is-nil",["var","is-nil"]]]]],["lam","a",["app",["var","Y"],["lam","*",["lam","b",["app",["app",["var","b"],["lam","b-",["app",["app",["var","+"],["var","a"]],["app",["var","*"],["var","b-"]]]]],["var","0"]]]]]]]],["app",["var","Y"],["lam","+",["lam","a",["lam","b",["app",["app",["var","a"],["lam","a-",["app",["var","+1"],["app",["app",["var","+"],["var","a-"]],["var","b"]]]]],["var","b"]]]]]]]],["app",["var","+1"],["var","9"]]]],["app",["var","+1"],["var","8"]]]],["app",["var","+1"],["var","7"]]]],["app",["var","+1"],["var","6"]]]],["app",["var","+1"],["var","5"]]]],["app",["var","+1"],["var","4"]]]],["app",["var","+1"],["var","3"]]]],["app",["var","+1"],["var","2"]]]],["app",["var","+1"],["var","1"]]]],["app",["var","+1"],["var","0"]]]],["lam","s",["lam","z",["var","z"]]]]],["lam","n",["lam","s",["lam","z",["app",["var","s"],["var","n"]]]]]]],["app",["var","Y"],["lam","bottom",["var","bottom"]]]]],["lam","f",["app",["lam","x",["app",["var","f"],["app",["var","x"],["var","x"]]]],["lam","x",["app",["var","f"],["app",["var","x"],["var","x"]]]]]]]
+        </textarea>
+        <hr>
+        <button id=eval_btn>Pretty Print</button><br>
+        Result:<br>
+        <textarea id=result style=width:90%;height:200px>
+        </textarea>
+        <script src=lambda-pretty-printer.js></script>
+    </body>
+</html>

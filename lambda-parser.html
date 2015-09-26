@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>Lambda parser</title>
+    </head>
+    <body>
+        Source:<br>
+        <textarea id=source style=width:90%;height:400px>
+(\Y
+(\bottom
+
+(\+1
+(\0
+(\1 (\2 (\3 (\4 (\5 (\6 (\7 (\8 (\9 (\10
+
+(\+
+(\*
+
+(\nil
+(\cons
+(\tail
+(\take
+(\zip-with
+
+(\fibs
+
+  take 5 fibs
+
+)(Y \fibs cons 1 (cons 1 (zip-with + fibs (tail fibs))))
+
+)(\f Y \zip-with \as \bs as (\a \as- bs (\b \bs- cons (f a b) (zip-with as- bs-)) nil) nil)
+)(Y \take \n \ls n (\n- ls (\a \as cons a (take n- as)) nil) nil)
+)(\ls ls (\a \as as) bottom)
+)(\a \as \is-cons \is-nil is-cons a as)
+)(\is-cons \is-nil is-nil)
+
+)(\a Y \* \b b (\b- + a (* b-)) 0)
+)(Y \+ \a \b a (\a- +1 (+ a- b)) b)
+
+)(+1 9))(+1 8))(+1 7))(+1 6))(+1 5))(+1 4))(+1 3))(+1 2))(+1 1))(+1 0)
+)(\s \z z)
+)(\n \s \z s n)
+
+)(Y \bottom bottom)
+)(\f (\x f (x x)) (\x f (x x)))
+        </textarea>
+        <hr>
+        <button id=eval_btn>Parse</button><br>
+        Result:<br>
+        <textarea id=result style=width:90%;height:200px>
+        </textarea>
+        <script src=lambda-parser.js></script>
+    </body>
+</html>
