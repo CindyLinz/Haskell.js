@@ -174,6 +174,20 @@ function run(expr){
         return ['var', (normal_form(a)[1]|0) * (normal_form(b)[1]|0)];
       }],
 
+    'div': {
+      expr: ['int', 'div', 2, function(a, b){
+        return {expr: ['var', (normal_form(a).expr[1]|0) / (normal_form(b).expr[1]|0) | 0], env: this};
+      }],
+      env: {}
+    },
+
+    'mod': {
+      expr: ['int', 'mod', 2, function(a, b){
+        return {expr: ['var', (normal_form(a).expr[1]|0) % (normal_form(b).expr[1]|0)], env: this};
+      }],
+      env: {}
+    },
+
     '<=':
       ['int', '<=', 2, function(a, b){
         return ['lam', 'a', ['lam', 'b', ['var', (normal_form(a)[1]|0) <= (normal_form(b)[1]|0) ? 'a' : 'b']]];

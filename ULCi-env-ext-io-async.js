@@ -150,9 +150,16 @@ function run(expr, done){
       env: {}
     },
 
-    '%': {
-      expr: ['int', '%', 2, function(a, b){
-        return {expr: ['var', (weak_normal_form(a).expr[1]|0) % (weak_normal_form(b).expr[1]|0)], env: {}};
+    'div': {
+      expr: ['int', 'div', 2, function(a, b){
+        return {expr: ['var', (weak_normal_form(a).expr[1]|0) / (weak_normal_form(b).expr[1]|0) | 0], env: this};
+      }],
+      env: {}
+    },
+
+    'mod': {
+      expr: ['int', 'mod', 2, function(a, b){
+        return {expr: ['var', (weak_normal_form(a).expr[1]|0) % (weak_normal_form(b).expr[1]|0)], env: this};
       }],
       env: {}
     },

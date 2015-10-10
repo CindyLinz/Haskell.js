@@ -1,0 +1,47 @@
+(\Y
+
+(\true
+(\false
+
+(\not
+(\and
+
+(\cons
+(\nil
+
+(\tail
+(\take
+(\drop
+
+(\filter
+
+(\==
+(\/=
+
+(\1-2-
+(\primes
+
+    take 50 primes
+
+)((\sieve sieve (tail 1-2-))(Y \sieve \ls ls (\p \ns cons p (sieve (filter (\n (/= (mod n p) 0)) ns))) nil))
+)((\from from 1)(Y \from \n cons n (from (+ n 1))))
+
+)(\a \b not (== a b))
+)(\a \b and (<= a b) (<= b a))
+
+)(\cond Y \go \ls ls (\a \as (\as' cond a (cons a as') as') (go as)) nil)
+
+)(Y \drop \n \ls <= n 0 ls (ls (\a \as drop (- n 1) as) nil))
+)(Y \take \n \ls <= n 0 nil (ls (\a \as cons a (take (- n 1) as)) nil))
+)(\ls ls (\a \as as) nil)
+
+)(\is-cons \is-nil is-nil)
+)(\a \as \is-cons \is-nil is-cons a as)
+
+)(\a \b a b false)
+)(\a a false true)
+
+)(\a \b b)
+)(\a \b a)
+
+)(\f (\x f (x x)) (\x f (x x)))

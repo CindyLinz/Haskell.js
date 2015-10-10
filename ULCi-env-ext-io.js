@@ -88,6 +88,20 @@ function run(expr){
       env: {}
     },
 
+    'div': {
+      expr: ['int', 'div', 2, function(a, b){
+        return {expr: ['var', (weak_normal_form(a).expr[1]|0) / (weak_normal_form(b).expr[1]|0) | 0], env: this};
+      }],
+      env: {}
+    },
+
+    'mod': {
+      expr: ['int', 'mod', 2, function(a, b){
+        return {expr: ['var', (weak_normal_form(a).expr[1]|0) % (weak_normal_form(b).expr[1]|0)], env: this};
+      }],
+      env: {}
+    },
+
     '<=': {
       expr: ['int', '<=', 2, function(a, b){
         return {expr: ['lam', 'a', ['lam', 'b', ['var', (weak_normal_form(a).expr[1]|0) <= (weak_normal_form(b).expr[1]|0) ? 'a' : 'b']]], env: {}};
