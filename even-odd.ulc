@@ -13,9 +13,16 @@
 
 (\even-odd even-odd \even \odd
 
-  odd2 6
+  even 6
 
-)(Y \even-odd \pair pair (\n n (\n- even-odd \even \odd odd n-) true) (\n n (\n- even-odd \even \odd even n-) false))
+)(Y \even-odd \tuple
+  (\even \odd tuple
+    (\n n (\n- odd n-) true)
+    (\n n (\n- even n-) false)
+  )
+    (even-odd \even \odd even)
+    (even-odd \even \odd odd)
+)
 
 )(Y \odd2 \n n (\n- not (odd2 n-)) false)
 )(Y \even2 \n n (\n- not (even2 n-)) true)

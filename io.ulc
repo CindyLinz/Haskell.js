@@ -25,7 +25,7 @@
 )(\a \as \is-cons \is-nil is-cons a as)
 )(\a \b \p p a b)
 
-)(Y \>>= \k \f \s k s (\s' \a f a s'))
+)(\k \f \s k s (\s' \a f a s'))
 
 )(Y \bottom bottom)
 )(\f (\x f (x x)) (\x f (x x)))
