@@ -173,7 +173,7 @@ function normal_form(closure){
   }
 }
 
-document.getElementById('eval_btn').onclick = function(){
+var doEval = function(){
   try{
     document.getElementById('result').value = pretty(normal_form({expr: parse(document.getElementById('source').value), env: {}}).expr);
   }
@@ -181,3 +181,13 @@ document.getElementById('eval_btn').onclick = function(){
     document.getElementById('result').value = 'ERROR: ' + e;
   }
 };
+
+document.getElementById('source').onkeydown = function(ev){
+  if( ev.keyCode == 13 && (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) ){
+    ev.preventDefault();
+    ev.stopPropagation();
+    doEval();
+  }
+};
+
+document.getElementById('eval_btn').onclick = doEval;
