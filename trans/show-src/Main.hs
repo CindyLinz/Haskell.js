@@ -82,6 +82,7 @@ myParseMode filename = ParseMode
   , ignoreLanguagePragmas = True
   , ignoreLinePragmas = False
   , fixities = Just preludeFixities
+  , ignoreFunctionArity = True
   }
 
 main = interact $ \inputStr ->
