@@ -91,12 +91,18 @@ myParseMode filename = ParseMode
   , ignoreFunctionArity = True
   }
 
+escapeJSString :: String -> String
+escapeJSString ('\'' : others) = '\\' : '\'' : escapeJSString others
+escapeJSString ('\\' : others) = '\\' : '\\' : escapeJSString others
+escapeJSString (ch : others) = ch : escapeJSString others
+escapeJSString _ = ""
+
 transName :: Name -> String
-transName (Ident name) = name
-transName (Symbol symbol) = "(" ++ symbol ++ ")"
+transName (Ident name) = "'" ++ escapeJSString name ++ "'"
+transName (Symbol symbol) = "'(" ++ escapeJSString symbol ++ ")'"
 
 transQName :: QName -> String
-transQName (UnQual name) = "['var','" ++ transName name ++ "']"
+transQName (UnQual name) = "['var'," ++ transName name ++ "]"
 transQName (Special UnitCon) = "['var','()']"
 transQName (Special ListCon) = "['var','[]']"
 transQName (Special (TupleCon boxed n)) = "['var','(" ++ replicate (n - 1) ',' ++ ")']"
@@ -109,7 +115,7 @@ transLit (Char ch) = "['app', ['var', 'C#'], ['dat', String.fromCharCode(" ++ sh
 transLit (Int i) = "['app', ['var', 'I#'], ['dat', " ++ show i ++ "]]"
 
 transLam :: [Pat] -> Exp -> String
-transLam (PVar name : ps) body = "['lam','" ++ transName name ++ "'," ++ transLam ps body ++ "]"
+transLam (PVar name : ps) body = "['lam'," ++ transName name ++ "," ++ transLam ps body ++ "]"
 transLam _ body = transExpr body
 
 transSign :: Sign -> String
@@ -132,31 +138,32 @@ transExpr (Let (BDecls binds) expr) =
   where
     genApp (PatBind _ (PVar name) _ _ : bs) = "['app', " ++ genApp bs ++ ", ['app', ['var', 'gen#'], " ++ genExtract binds ++ "]]"
       where
-        genExtract (PatBind _ (PVar lamName) _ _ : bs) = "['lam', '" ++ transName lamName ++ "', " ++ genExtract bs ++ "]"
-        genExtract _ = "['var', '" ++ transName name ++ "']"
+        genExtract (PatBind _ (PVar lamName) _ _ : bs) = "['lam', " ++ transName lamName ++ ", " ++ genExtract bs ++ "]"
+        genExtract _ = "['var', " ++ transName name ++ "]"
     genApp _ = genDestruct binds
-    genDestruct (PatBind _ (PVar name) _ _ : bs) = "['lam', '" ++ transName name ++ "', " ++ genDestruct bs ++ "]"
+    genDestruct (PatBind _ (PVar name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genDestruct bs ++ "]"
     genDestruct _ = genDef (reverse binds)
     genDef (PatBind _ _ (UnGuardedRhs expr) _ : bs) = "['app', " ++ genDef bs ++ ", " ++ transExpr expr ++ "]"
     genDef _ = "['var', 'tuple#']"
-    genIn (PatBind _ (PVar name) _ _ : bs) = "['lam', '" ++ transName name ++ "', " ++ genIn bs ++ "]"
+    genIn (PatBind _ (PVar name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genIn bs ++ "]"
     genIn _ = transExpr expr
 transExpr (Case target alts) = case alts of
   (Alt _ (PVar name) (UnGuardedRhs expr) Nothing : _) -> -- case target of name -> expr
-    "['app',['lam','" ++ transName name ++ "'," ++ transExpr expr ++ "]," ++ transExpr target ++ "]"
+    "['app',['lam'," ++ transName name ++ "," ++ transExpr expr ++ "]," ++ transExpr target ++ "]"
   (Alt _ (PLit _ (Int _)) _ _ : _) -> -- 整數 literal: 1, 2, 3, ..
     "['app', " ++ transExpr target ++ ", " ++ genPrimIntMatch alts ++ "]"
   (Alt _ (PLit _ (PrimInt _)) _ _ : _) -> -- unbox 整數 literal: 1#, 2#, 3#, ...
     "['app', " ++ genPrimIntMatch alts ++ ", " ++ transExpr target ++ "]"
   [Alt _ (PList []) (UnGuardedRhs exprNil) _, Alt _ (PApp _ [PVar aName, PVar asName]) (UnGuardedRhs exprCons) _ ] -> -- (G)ADT (for list)
-    "['app', ['app', " ++ transExpr target ++ ", " ++ transExpr exprNil ++ "], ['lam', '" ++ transName aName ++ "', ['lam', '" ++ transName asName ++ "', " ++ transExpr exprCons ++ "]]]"
+    "['app', ['app', " ++ transExpr target ++ ", " ++ transExpr exprNil ++ "], ['lam', " ++ transName aName ++ ", ['lam', " ++ transName asName ++ ", " ++ transExpr exprCons ++ "]]]"
   (Alt _ (PApp _ _) _ _ : _) -> -- (G)ADT
     genApp (reverse alts)
     where
       genApp (Alt _ (PApp (UnQual conName) vars) (UnGuardedRhs expr) Nothing : as) =
         "['app', " ++ genApp as ++ ", " ++ genLam vars ++ "]"
         where
-          genLam (PVar name : vs) = "['lam', '" ++ transName name ++ "', " ++ genLam vs ++ "]"
+          genLam (PVar name : vs) = "['lam', " ++ transName name ++ ", " ++ genLam vs ++ "]"
+          genLam (PWildCard : vs) = "['lam', '_', " ++ genLam vs ++ "]"
           genLam _ = transExpr expr
       genApp _ = transExpr target
   _ -> error $ show alts ++ " unimplemented case pattern"
@@ -177,7 +184,7 @@ genPrimIntMatch alts =
     genBranch (Alt _ (PLit sign (Int n)) rhs Nothing) =
       "case " ++ transSign sign ++ show n ++ ": " ++ genRHS rhs
     genBranch (Alt _ (PVar name) rhs Nothing) =
-      "default: env = clone_env(env); env['" ++ transName name ++ "'] = target; " ++ genRHS rhs
+      "default: env = clone_env(env); env[" ++ transName name ++ "] = target; " ++ genRHS rhs
     genBranch (Alt _ PWildCard rhs Nothing) =
       "default: " ++ genRHS rhs
     genBranch alt = error $ show alt ++ " not implemented PrimInt branch"
@@ -185,7 +192,7 @@ genPrimIntMatch alts =
 
 transDecl :: Decl -> String
 transDecl (PatBind loc (PVar name) (UnGuardedRhs expr) Nothing) =
-  "env['" ++ transName name ++ "'] = {env: env, expr: " ++ transExpr expr ++ "};\n\n"
+  "env[" ++ transName name ++ "] = {env: env, expr: " ++ transExpr expr ++ "};\n\n"
 transDecl (GDataDecl loc DataType [] name [] mKinds gDecls []) = mconcat $ flip map gDecls $ \(GadtDecl loc name [] ty) ->
   let
     slotCount = count 0 ty where
@@ -195,13 +202,13 @@ transDecl (GDataDecl loc DataType [] name [] mKinds gDecls []) = mconcat $ flip 
     genSlots 0 = genBody gDecls
     genSlots n = "['lam','a" ++ show (slotCount - n + 1) ++ "'," ++ genSlots (n - 1) ++ "]"
 
-    genBody (GadtDecl _ name _ _ : ds) = "['lam','is-" ++ transName name ++ "'," ++ genBody ds ++ "]"
+    genBody (GadtDecl _ name _ _ : ds) = "['lam'," ++ transName name ++ "," ++ genBody ds ++ "]"
     genBody _ = genApp slotCount
 
-    genApp 0 = "['var','is-" ++ transName name ++ "']"
+    genApp 0 = "['var'," ++ transName name ++ "]"
     genApp n = "['app'," ++ genApp (n - 1) ++ ",['var','a" ++ show n ++ "']]"
   in
-    "env['" ++ transName name ++ "'] = {env: env, expr: " ++ genSlots slotCount ++ "};\n\n"
+    "env[" ++ transName name ++ "] = {env: env, expr: " ++ genSlots slotCount ++ "};\n\n"
 transDecl decl = error $ show decl ++ " not implemented"
 
 transModule :: Module -> String

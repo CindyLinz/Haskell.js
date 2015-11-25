@@ -51,21 +51,26 @@ showPosIntList = \ls ->
 zipWithList = \f ->
   let
     go = \as bs -> case as of
-      Cons a as -> case bs of
-        Cons b bs -> Cons (f a b) (go as bs)
-        _ -> Nil
       Nil -> Nil
+      Cons a as -> case bs of
+        Nil -> Nil
+        Cons b bs -> Cons (f a b) (go as bs)
   in
     go
 
 tailList = \ls -> case ls of
+  Nil -> 0
   Cons a as -> as
+
+headList = \ls -> case ls of
+  Nil -> 0
+  Cons a as -> a
 
 takeList = \n ls -> case n of
   0 -> Nil
   _ -> case ls of
+    Nil -> Nil
     Cons a as -> Cons a (takeList ((-) n 1) as)
-    _ -> Nil
 
 fibs = Cons 1 (Cons 1 (zipWithList (+) fibs (tailList fibs)))
 
