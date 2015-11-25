@@ -59,7 +59,7 @@ zipWithList = \f ->
     go
 
 tailList = \ls -> case ls of
-  Nil -> 0
+  Nil -> Nil
   Cons a as -> as
 
 headList = \ls -> case ls of
