@@ -23,16 +23,24 @@ data Pair :: * -> * -> * where
 
 -- [a] 語法特殊, 不用 Haskell 定義
 
---(+) = \a b -> case a of
---  I# a# -> case b of
---    I# b# -> I# ((+#) a# b#)
---
---(-) = \a b -> case a of
---  I# a# -> case b of
---    I# b# -> I# ((-#) a# b#)
---
---(<=) = \a b -> case a of
---  I# a# -> case b of
---    I# b# -> case (<=#) a# b# of
---      0# -> False
---      _ -> True
+(+) = \a b -> case a of
+  I# a# -> case b of
+    I# b# -> I# ((+#) a# b#)
+
+(-) = \a b -> case a of
+  I# a# -> case b of
+    I# b# -> I# ((-#) a# b#)
+
+(<=) = \a b -> case a of
+  I# a# -> case b of
+    I# b# -> case (<=#) a# b# of
+      0# -> False
+      _ -> True
+
+div = \a b -> case a of
+  I# a# -> case b of
+    I# b# -> I# (quotInt# a# b#)
+
+mod = \a b -> case a of
+  I# a# -> case b of
+    I# b# -> I# (remInt# a# b#)

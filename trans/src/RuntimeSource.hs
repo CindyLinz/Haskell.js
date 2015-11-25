@@ -352,6 +352,11 @@ genPreludeNative = "function lc_char_to_js_char(lc_char){\n\
 \  return out;\n\
 \}\n\
 \\n\
+\env['Y#'] = {\n\
+\  expr: ['lam', 'f', ['app', ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]], ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]]]],\n\
+\  env: env\n\
+\};\n\
+\\n\
 \env['[]'] = {\n\
 \  expr: ['lam', 'is-nil', ['lam', 'is-cons', ['var', 'is-nil']]],\n\
 \  env: env\n\
@@ -540,17 +545,25 @@ srcPrelude = "{-# LANGUAGE GADTs, KindSignatures, MagicHash #-}\n\
 \\n\
 \-- [a] 語法特殊, 不用 Haskell 定義\n\
 \\n\
-\--(+) = \\a b -> case a of\n\
-\--  I# a# -> case b of\n\
-\--    I# b# -> I# ((+#) a# b#)\n\
-\--\n\
-\--(-) = \\a b -> case a of\n\
-\--  I# a# -> case b of\n\
-\--    I# b# -> I# ((-#) a# b#)\n\
-\--\n\
-\--(<=) = \\a b -> case a of\n\
-\--  I# a# -> case b of\n\
-\--    I# b# -> case (<=#) a# b# of\n\
-\--      0# -> False\n\
-\--      _ -> True\n"
+\(+) = \\a b -> case a of\n\
+\  I# a# -> case b of\n\
+\    I# b# -> I# ((+#) a# b#)\n\
+\\n\
+\(-) = \\a b -> case a of\n\
+\  I# a# -> case b of\n\
+\    I# b# -> I# ((-#) a# b#)\n\
+\\n\
+\(<=) = \\a b -> case a of\n\
+\  I# a# -> case b of\n\
+\    I# b# -> case (<=#) a# b# of\n\
+\      0# -> False\n\
+\      _ -> True\n\
+\\n\
+\div = \\a b -> case a of\n\
+\  I# a# -> case b of\n\
+\    I# b# -> I# (quotInt# a# b#)\n\
+\\n\
+\mod = \\a b -> case a of\n\
+\  I# a# -> case b of\n\
+\    I# b# -> I# (remInt# a# b#)\n"
 

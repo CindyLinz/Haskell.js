@@ -35,6 +35,11 @@ function lc_str_to_js_str(lc_str){
   return out;
 }
 
+env['Y#'] = {
+  expr: ['lam', 'f', ['app', ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]], ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]]]],
+  env: env
+};
+
 env['[]'] = {
   expr: ['lam', 'is-nil', ['lam', 'is-cons', ['var', 'is-nil']]],
   env: env
