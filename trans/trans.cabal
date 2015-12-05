@@ -24,6 +24,19 @@ executable show
   hs-source-dirs:      show-src
   default-language:    Haskell2010
 
+executable desugar-template
+  main-is:             Main.hs
+  -- other-modules:       
+  -- other-extensions:    
+  default-extensions:  TemplateHaskell
+                     , LambdaCase
+  build-depends:       base >=4.7 && <4.8
+                     , haskell-src-exts ==1.17.*
+                     , template-haskell ==2.9.*
+                     , containers ==0.5.*
+  hs-source-dirs:      desugar-template-src
+  default-language:    Haskell2010
+
 executable trans
   main-is:             Main.hs
   -- other-modules:       
