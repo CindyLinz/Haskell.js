@@ -18,3 +18,8 @@ $ .cabal-sandbox/bin/show < sample/hello_world.hs
 $ .cabal-sandbox/bin/trans < sample/hello_world.hs | node
 # run the sample
 ```
+
+```bash
+$ .cabal-sandbox/bin/desugar-template DeIf deIf > src/DeIf.hs
+# generate desugar template source
+```
