@@ -87,14 +87,14 @@ env['remInt#'] = {
 
 env['(<=#)'] = {
   expr: ['int', '(<=#)', 2, function(a, b){
-    return {expr: ['dat', weak_normal_form(a).expr[1] <= weak_normal_form(b).expr[1]], env: env};
+    return {expr: ['dat', (weak_normal_form(a).expr[1] <= weak_normal_form(b).expr[1]) | 0], env: env};
   }],
   env: env
 };
 
 env['(==#)'] = {
   expr: ['int', '(==#)', 2, function(a, b){
-    return {expr: ['dat', weak_normal_form(a).expr[1] == weak_normal_form(b).expr[1]], env: env}
+    return {expr: ['dat', (weak_normal_form(a).expr[1] == weak_normal_form(b).expr[1]) | 0], env: env}
   }],
   env: env
 };
