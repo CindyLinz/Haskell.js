@@ -4,15 +4,58 @@ import Data.Functor
 import Data.List
 import Data.Char
 import Data.Monoid
+import Data.String
 import Control.Applicative
 import Control.Monad
 import qualified Data.Set as S
 import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
+import Language.Haskell.TH.Ppr
+
+data CodeAtom
+  = StaticCode String
+  | VarCode String
+  deriving Show
+
+newtype CodeGen = CodeGen [CodeAtom] deriving (Monoid, Show)
+
+varCode :: String -> CodeGen
+varCode name = CodeGen [VarCode name]
+
+staticCode :: String -> CodeGen
+staticCode str = CodeGen [StaticCode str]
+
+intercalateCode :: CodeGen -> [CodeGen] -> CodeGen
+intercalateCode sep = go where
+  go [] = CodeGen []
+  go [atom] = atom
+  go (a : as) = a <> sep <> go as
+
+genCode :: CodeGen -> Q Exp
+genCode (CodeGen codeAtoms) = gen (unionStatic codeAtoms) where
+
+  unionStatic (a : as) =
+    case (a, unionStatic as) of
+      (StaticCode aStr, StaticCode asStr : others) -> StaticCode (aStr <> asStr) : others
+      (_, as') -> a : as'
+  unionStatic _ = []
+
+  gen [] = varE (mkName "mempty")
+  gen (StaticCode str : others) = infixApp (litE (stringL str)) (varE (mkName "<>")) (gen others)
+  gen (VarCode name : others) = infixApp (varE (mkName name)) (varE (mkName "<>")) (gen others)
+
+instance IsString CodeAtom where
+  fromString = StaticCode
+
+instance IsString CodeGen where
+  fromString = CodeGen . pure . fromString
 
 trivialTypes :: S.Set String
 trivialTypes = S.fromList ["String", "Maybe", "Int", "Rational", "Char", "Integer", "Bool"]
+
+reservedNames :: S.Set String
+reservedNames = S.fromList ["type", "deriving"]
 
 deriveDesugarTemplate :: String -> Q [Dec]
 deriveDesugarTemplate funName = do
@@ -23,19 +66,20 @@ deriveDesugarTemplate funName = do
 
   moduleInfo <- reify moduleName
 
-  let code = genDataTransformer "deIf" moduleInfo
-  runIO $ putStrLn code
-
   allComponent <- collectAllNonTrivialComponent moduleName
   runIO $ putStrLn (show allComponent)
 
   allCode <- forM (S.toList allComponent) $ \name -> do
     info <- reify name
-    let code = genDataTransformer "deIf" info
-    runIO $ putStrLn code
+    let code = genDataTransformer info
+    --runIO $ putStrLn code
     return code
+  let generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\nimport Language.Haskell.Exts.Syntax\nimport Control.Arrow ((***))\n"] : allCode
+  ee <- generatedExp
+  runIO $ putStrLn $ pprint ee
+  --runIO $ putStrLn $ show allCode
 
-  fmap pure $ funD (mkName funName) [clause (map (varP . mkName) ["modName", "funPrefix"]) (normalB (varE (mkName "undefined"))) []]
+  fmap pure $ funD (mkName funName) [clause (map (varP . mkName) ["modName", "funPrefix"]) (normalB generatedExp) []]
 
 maybeVarNameFromType :: Type -> Maybe Name
 maybeVarNameFromType (ConT (name @ (Name (OccName nameStr) _)))
@@ -67,31 +111,34 @@ varNamesForNormalSlots slots =
 
     finalNames = go M.empty rawNames where
       go nameCount (nameStr : others) =
-        if S.member nameStr dupNames then
-          let
-            nameCount' = M.insertWith (+) nameStr 1 nameCount
-            serial = nameCount' M.! nameStr
-          in
-            (nameStr ++ show serial) : go nameCount' others
-        else
-          nameStr : go nameCount others
+        if | S.member nameStr dupNames ->
+            let
+              nameCount' = M.insertWith (+) nameStr 1 nameCount
+              serial = nameCount' M.! nameStr
+            in
+              (nameStr ++ show serial) : go nameCount' others
+           | S.member nameStr reservedNames ->
+            (nameStr ++ "0") : go nameCount others
+           | otherwise ->
+            nameStr : go nameCount others
       go _ _ = []
   in
     finalNames
 
-transExprFromType :: String -> Type -> String
-transExprFromType funPrefix = genExpr where
+transExprFromType :: Type -> CodeGen
+transExprFromType = genExpr where
+  genExpr :: Type -> CodeGen
   genExpr = \case
     ConT (Name (OccName name) _)
       | S.member name trivialTypes -> "id"
-      | otherwise -> funPrefix ++ name
-    AppT ListT x -> "fmap (" ++ genExpr x ++ ")"
-    AppT (ConT (Name (OccName "Maybe") _)) x -> "fmap (" ++ genExpr x ++ ")"
-    AppT (AppT (TupleT 2) a) b -> "(" ++ genExpr a ++ ") *** (" ++ genExpr b ++ ")"
+      | otherwise -> varCode "funPrefix" <> staticCode name
+    AppT ListT x -> "fmap (" <> genExpr x <> ")"
+    AppT (ConT (Name (OccName "Maybe") _)) x -> "fmap (" <> genExpr x <> ")"
+    AppT (AppT (TupleT 2) a) b -> "((" <> genExpr a <> ") *** (" <> genExpr b <> "))"
     others -> error $ "exprFromType " ++ show others ++ " not implemented"
 
-exprFromType :: String -> String -> Type -> String
-exprFromType name funPrefix ty = "(" ++ transExprFromType funPrefix ty ++ " " ++ name ++ ")"
+exprFromType :: String -> Type -> CodeGen
+exprFromType name ty = "(" <> transExprFromType ty <> " " <> staticCode name <> ")"
 
 lowerHead :: String -> String
 lowerHead (c:cs) = toLower c : cs
@@ -133,25 +180,25 @@ nonTrivialComponentInCon = \case
   RecC _ slots -> mconcat (map (\(_, _, ty) -> nonTrivialComponentInType ty) slots)
   others -> error $ "nonTrivialComponentInCon " ++ show others ++ " not implemented"
 
-genDataTransformer :: String -> Info -> String
-genDataTransformer funPrefix =
+genDataTransformer :: Info -> CodeGen
+genDataTransformer =
   let
     conToDef tyNameStr (NormalC (Name (OccName conNameStr) _) slots) =
       let
         varNames = varNamesForNormalSlots slots
       in
-        funPrefix ++ tyNameStr ++
-          " (" ++ intercalate " " (conNameStr : varNames) ++ ") = " ++
-          intercalate " " (conNameStr : zipWith (\varNameStr (_, ty) -> exprFromType varNameStr funPrefix ty) varNames slots) ++
+        varCode "funPrefix" <> staticCode tyNameStr <>
+          " (" <> staticCode (intercalate " " (conNameStr : varNames)) <> ") = " <>
+          intercalateCode " " (staticCode conNameStr : zipWith (\varNameStr (_, ty) -> exprFromType varNameStr ty) varNames slots) <>
           "\n"
 
     conToDef tyNameStr (RecC (Name (OccName conNameStr) _) slots) =
       let
         varNames = map (\(Name (OccName nameStr) _, _, _) -> nameStr) slots
       in
-        funPrefix ++ tyNameStr ++
-          " (" ++ intercalate " " (conNameStr : varNames) ++ ") = " ++
-          intercalate " " (conNameStr : zipWith (\varNameStr (_, _, ty) -> exprFromType varNameStr funPrefix ty) varNames slots) ++
+        varCode "funPrefix" <> staticCode tyNameStr <>
+          " (" <> staticCode (intercalate " " (conNameStr : varNames)) <> ") = " <>
+          intercalateCode " " (staticCode conNameStr : zipWith (\varNameStr (_, _, ty) -> exprFromType varNameStr ty) varNames slots) <>
           "\n"
 
     conToDef tyNameStr others = error $ "genCon " ++ show others ++ " not implemented"
@@ -160,23 +207,23 @@ genDataTransformer funPrefix =
     \case
       TyConI (DataD [] (Name (OccName tyNameStr) _) [] cons _) ->
         let
-          typeSig = funPrefix ++ tyNameStr ++ " :: " ++ tyNameStr ++ " -> " ++ tyNameStr ++ "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
 
         in
-          concat $ typeSig : map (conToDef tyNameStr) cons
+          mconcat $ typeSig : map (conToDef tyNameStr) cons
 
       TyConI (TySynD (Name (OccName tyNameStr) _) [] ty) ->
         let
-          typeSig = funPrefix ++ tyNameStr ++ " :: " ++ tyNameStr ++ " -> " ++ tyNameStr ++ "\n"
-          def = funPrefix ++ tyNameStr ++ " a = " ++ exprFromType "a" funPrefix ty ++ "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
+          def = varCode "funPrefix" <> staticCode tyNameStr <> " a = " <> exprFromType "a" ty <> "\n"
         in
-          concat [typeSig, def]
+          typeSig <> def
 
       TyConI (NewtypeD [] (Name (OccName tyNameStr) _) [] con _) ->
         let
-          typeSig = funPrefix ++ tyNameStr ++ " :: " ++ tyNameStr ++ " -> " ++ tyNameStr ++ "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
           def = conToDef tyNameStr con
         in
-          concat [typeSig, def]
+          typeSig <> def
 
       others -> error $ "genDataTransformer " ++ show others ++ " not implemented"

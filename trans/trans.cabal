@@ -30,6 +30,9 @@ executable desugar-template
   -- other-extensions:    
   default-extensions:  TemplateHaskell
                      , LambdaCase
+                     , GeneralizedNewtypeDeriving
+                     , OverloadedStrings
+                     , MultiWayIf
   build-depends:       base >=4.7 && <4.8
                      , haskell-src-exts ==1.17.*
                      , template-haskell ==2.9.*
