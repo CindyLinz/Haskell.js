@@ -33,7 +33,7 @@ intercalateCode sep = go where
   go (a : as) = a <> sep <> go as
 
 genCode :: CodeGen -> Q Exp
-genCode (CodeGen codeAtoms) = gen (unionStatic codeAtoms) where
+genCode (CodeGen codeAtoms) = varE (mkName "mconcat") `appE` listE (map codeAtomToExp (unionStatic codeAtoms)) where
 
   unionStatic (a : as) =
     case (a, unionStatic as) of
@@ -41,9 +41,8 @@ genCode (CodeGen codeAtoms) = gen (unionStatic codeAtoms) where
       (_, as') -> a : as'
   unionStatic _ = []
 
-  gen [] = varE (mkName "mempty")
-  gen (StaticCode str : others) = infixApp (litE (stringL str)) (varE (mkName "<>")) (gen others)
-  gen (VarCode name : others) = infixApp (varE (mkName name)) (varE (mkName "<>")) (gen others)
+  codeAtomToExp (StaticCode str) = litE (stringL str)
+  codeAtomToExp (VarCode name) = varE (mkName name)
 
 instance IsString CodeAtom where
   fromString = StaticCode
@@ -62,12 +61,12 @@ deriveDesugarTemplate funName = do
   Just moduleName <- lookupTypeName "Module"
 
   moduleInfo <- reify moduleName
-  runIO $ putStrLn $ show moduleInfo
+  --runIO $ putStrLn $ show moduleInfo
 
   moduleInfo <- reify moduleName
 
   allComponent <- collectAllNonTrivialComponent moduleName
-  runIO $ putStrLn (show allComponent)
+  --runIO $ putStrLn (show allComponent)
 
   allCode <- forM (S.toList allComponent) $ \name -> do
     info <- reify name
@@ -75,8 +74,8 @@ deriveDesugarTemplate funName = do
     --runIO $ putStrLn code
     return code
   let generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\nimport Language.Haskell.Exts.Syntax\nimport Control.Arrow ((***))\n"] : allCode
-  ee <- generatedExp
-  runIO $ putStrLn $ pprint ee
+  --ee <- generatedExp
+  --runIO $ putStrLn $ pprint ee
   --runIO $ putStrLn $ show allCode
 
   fmap pure $ funD (mkName funName) [clause (map (varP . mkName) ["modName", "funPrefix"]) (normalB generatedExp) []]
