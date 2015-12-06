@@ -10,6 +10,7 @@ import Data.Char
 -- import qualified Data.Map.Strict as M
 
 import RuntimeSource
+import DeIf
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -233,6 +234,8 @@ transModule (Module moduleLoc moduleName pragmas mWarnings moduleExports moduleI
 --
 --    _ -> M.empty
 
+desugarModule = deIfModule
+
 main = interact $ \inputStr ->
   case parseWithMode (myParseMode "mySource.hs") inputStr of
     ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
@@ -240,4 +243,4 @@ main = interact $ \inputStr ->
       case parseWithMode (myParseMode "Prelude.hs") srcPrelude of
         ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
         ParseOk preludeMod ->
-          genInit ++ genPreludeNative ++ transModule preludeMod ++ transModule mod ++ genRun
+          genInit ++ genPreludeNative ++ transModule (desugarModule preludeMod) ++ transModule (desugarModule mod) ++ genRun

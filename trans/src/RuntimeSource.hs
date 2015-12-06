@@ -404,14 +404,14 @@ genPreludeNative = "function lc_char_to_js_char(lc_char){\n\
 \\n\
 \env['(<=#)'] = {\n\
 \  expr: ['int', '(<=#)', 2, function(a, b){\n\
-\    return {expr: ['dat', weak_normal_form(a).expr[1] <= weak_normal_form(b).expr[1]], env: env};\n\
+\    return {expr: ['dat', (weak_normal_form(a).expr[1] <= weak_normal_form(b).expr[1]) | 0], env: env};\n\
 \  }],\n\
 \  env: env\n\
 \};\n\
 \\n\
 \env['(==#)'] = {\n\
 \  expr: ['int', '(==#)', 2, function(a, b){\n\
-\    return {expr: ['dat', weak_normal_form(a).expr[1] == weak_normal_form(b).expr[1]], env: env}\n\
+\    return {expr: ['dat', (weak_normal_form(a).expr[1] == weak_normal_form(b).expr[1]) | 0], env: env}\n\
 \  }],\n\
 \  env: env\n\
 \};\n\
