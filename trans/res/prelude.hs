@@ -23,6 +23,16 @@ data Pair :: * -> * -> * where
 
 -- [a] 語法特殊, 不用 Haskell 定義
 
+(++) = \as bs -> case as of
+  [] -> bs
+  (:) a as -> (:) a ((++) as bs)
+
+take = \n ls -> case n of
+  0 -> []
+  _ -> case ls of
+    [] -> []
+    (:) a as -> a : take (n - 1) as
+
 (+) = \a b -> case a of
   I# a# -> case b of
     I# b# -> I# ((+#) a# b#)

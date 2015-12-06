@@ -10,7 +10,9 @@ import Data.Char
 -- import qualified Data.Map.Strict as M
 
 import RuntimeSource
+
 import DeIf
+import DeList
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -234,7 +236,7 @@ transModule (Module moduleLoc moduleName pragmas mWarnings moduleExports moduleI
 --
 --    _ -> M.empty
 
-desugarModule = deIfModule
+desugarModule = deIfModule . deListModule
 
 main = interact $ \inputStr ->
   case parseWithMode (myParseMode "mySource.hs") inputStr of

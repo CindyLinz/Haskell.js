@@ -545,6 +545,16 @@ srcPrelude = "{-# LANGUAGE GADTs, KindSignatures, MagicHash #-}\n\
 \\n\
 \-- [a] 語法特殊, 不用 Haskell 定義\n\
 \\n\
+\(++) = \\as bs -> case as of\n\
+\  [] -> bs\n\
+\  (:) a as -> (:) a ((++) as bs)\n\
+\\n\
+\take = \\n ls -> case n of\n\
+\  0 -> []\n\
+\  _ -> case ls of\n\
+\    [] -> []\n\
+\    (:) a as -> a : take (n - 1) as\n\
+\\n\
 \(+) = \\a b -> case a of\n\
 \  I# a# -> case b of\n\
 \    I# b# -> I# ((+#) a# b#)\n\
