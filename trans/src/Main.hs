@@ -13,6 +13,7 @@ import RuntimeSource
 
 import DeIf
 import DeList
+import DeWhere
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -236,7 +237,7 @@ transModule (Module moduleLoc moduleName pragmas mWarnings moduleExports moduleI
 --
 --    _ -> M.empty
 
-desugarModule = deIfModule . deListModule
+desugarModule = deIfModule . deListModule . deWhereModule
 
 main = interact $ \inputStr ->
   case parseWithMode (myParseMode "mySource.hs") inputStr of
