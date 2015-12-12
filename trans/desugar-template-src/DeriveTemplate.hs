@@ -12,6 +12,7 @@ import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Ppr
+import Language.Haskell.TH.Quote
 
 data CodeAtom
   = StaticCode String
@@ -41,7 +42,7 @@ genCode (CodeGen codeAtoms) = varE (mkName "mconcat") `appE` listE (map codeAtom
       (_, as') -> a : as'
   unionStatic _ = []
 
-  codeAtomToExp (StaticCode str) = litE (stringL str)
+  codeAtomToExp (StaticCode str) = stringE str
   codeAtomToExp (VarCode name) = varE (mkName name)
 
 instance IsString CodeAtom where
@@ -56,9 +57,9 @@ trivialTypes = S.fromList ["String", "Maybe", "Int", "Rational", "Char", "Intege
 reservedNames :: S.Set String
 reservedNames = S.fromList ["type", "deriving"]
 
-deriveDesugarTemplate :: String -> Q [Dec]
-deriveDesugarTemplate funName = do
-  Just moduleName <- lookupTypeName "Module"
+deriveDesugarTemplate :: String -> String -> Q [Dec]
+deriveDesugarTemplate funName moduleNameStr = do
+  Just moduleName <- lookupTypeName moduleNameStr
 
   moduleInfo <- reify moduleName
   --runIO $ putStrLn $ show moduleInfo
@@ -73,14 +74,41 @@ deriveDesugarTemplate funName = do
     let code = genDataTransformer info
     --runIO $ putStrLn code
     return code
-  let generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\nimport Language.Haskell.Exts.Syntax\nimport Control.Arrow ((***))\n"] : allCode
+  let
+    generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\nimport Language.Haskell.Exts.Syntax\nimport Control.Arrow ((***))\n"] : allCode
   --ee <- generatedExp
   --runIO $ putStrLn $ pprint ee
   --runIO $ putStrLn $ show allCode
+  --
+    generatedFunDQ = funD (mkName funName)
+      [ clause (map (varP . mkName) ["modName", "funPrefix", "additionalArgNum"])
+        (normalB generatedExp)
+--        [ [d| additionalArgsType = concat $ map (\i -> 'a' : show i ++ " ->") [1 .. additionalArgNum] |]
+--        , [d| additionalArgsExp = concat $ map (\i -> " a" ++ show i) [1 .. additionalArgNum] |]
+--        ]
+        [ valD
+          (varP (mkName "additionalArgsType"))
+          (normalB (varE (mkName "concat") `appE` (varE (mkName "map") `appE` lam1E (varP (mkName "i")) (infixApp (litE (charL 'a')) (conE (mkName ":")) (infixApp (varE (mkName "show") `appE` varE (mkName "i")) (varE (mkName "++")) (stringE " -> "))) `appE` arithSeqE (litE (integerL 1) `fromToR` varE (mkName "additionalArgNum")))))
+          []
+        , valD
+          (varP (mkName "additionalArgsExp"))
+          (normalB (varE (mkName "concat") `appE` (varE (mkName "map") `appE` lam1E (varP (mkName "i")) (infixApp (stringE " a") (varE (mkName "++")) (varE (mkName "show") `appE` varE (mkName "i"))) `appE` arithSeqE (litE (integerL 1) `fromToR` varE (mkName "additionalArgNum")))))
+          []
+        ]
+      ]
 
-  fmap pure $ funD (mkName funName) [clause (map (varP . mkName) ["modName", "funPrefix"]) (normalB generatedExp) []]
+--  generatedFunD <- generatedFunDQ
+--  runIO $ putStrLn $ pprint generatedFunD
+
+  fmap pure generatedFunDQ
+--    additionalArgs :: CodeGen
+--    additionalArgs = "map (\\n -> \" a\" ++ show n) [1.." <> varCode "additionalArgs" <> staticCode "]"
+--      go res 0 = res
+--      go res n = go (staticCode (" a" ++ show n) : res) (n - 1)
+
 
 maybeVarNameFromType :: Type -> Maybe Name
+maybeVarNameFromType (VarT name) = Just name
 maybeVarNameFromType (ConT (name @ (Name (OccName nameStr) _)))
   | S.member nameStr trivialTypes = Nothing
   | otherwise = Just name
@@ -89,6 +117,7 @@ maybeVarNameFromType _ = Nothing
 
 varNameFromType :: Type -> Name
 varNameFromType (ConT name) = name
+varNameFromType (VarT name) = name
 varNameFromType (all @ (AppT f x)) = case maybeVarNameFromType all of
   Just o -> o
   Nothing -> varNameFromType x
@@ -128,12 +157,14 @@ transExprFromType :: Type -> CodeGen
 transExprFromType = genExpr where
   genExpr :: Type -> CodeGen
   genExpr = \case
+    VarT _ -> "id"
     ConT (Name (OccName name) _)
       | S.member name trivialTypes -> "id"
-      | otherwise -> varCode "funPrefix" <> staticCode name
+      | otherwise -> varCode "funPrefix" <> staticCode name <> varCode "additionalArgsExp"
     AppT ListT x -> "fmap (" <> genExpr x <> ")"
     AppT (ConT (Name (OccName "Maybe") _)) x -> "fmap (" <> genExpr x <> ")"
     AppT (AppT (TupleT 2) a) b -> "((" <> genExpr a <> ") *** (" <> genExpr b <> "))"
+    AppT f (VarT _) -> genExpr f
     others -> error $ "exprFromType " ++ show others ++ " not implemented"
 
 exprFromType :: String -> Type -> CodeGen
@@ -160,17 +191,24 @@ nonTrivialComponentInType :: Type -> S.Set Name
 nonTrivialComponentInType = \case
   ConT (name @ (Name (OccName nameStr) _))
     | S.member nameStr trivialTypes -> S.empty
+    | isLower (head nameStr) -> S.empty
     | otherwise -> S.singleton name
   AppT f x -> nonTrivialComponentInType f `S.union` nonTrivialComponentInType x
   ListT -> S.empty
   TupleT _ -> S.empty
+  VarT _ -> S.empty
   others -> error $ "nonTrivialComponentInType " ++ show others ++ " not implemented"
+
+extractTyVarBndrNameStr :: [TyVarBndr] -> [String]
+extractTyVarBndrNameStr (PlainTV (Name (OccName nameStr) _) : others) = nameStr : extractTyVarBndrNameStr others
+extractTyVarBndrNameStr (KindedTV (Name (OccName nameStr) _) _ : others) = nameStr : extractTyVarBndrNameStr others
+extractTyVarBndrNameStr _ = []
 
 nonTrivialComponentInInfo :: Info -> S.Set Name
 nonTrivialComponentInInfo = \case
-  TyConI (DataD [] _ [] cons _) -> mconcat (map nonTrivialComponentInCon cons)
-  TyConI (TySynD _ [] ty) -> nonTrivialComponentInType ty
-  TyConI (NewtypeD [] _ [] con _) -> nonTrivialComponentInCon con
+  TyConI (DataD [] _ bndrs cons _) -> mconcat $ map nonTrivialComponentInCon cons
+  TyConI (TySynD _ bndrs ty) -> nonTrivialComponentInType ty
+  TyConI (NewtypeD [] _ bndrs con _) -> nonTrivialComponentInCon con
   others -> error $ "nonTrivialComponentInInfo " ++ show others ++ " not implemented"
 
 nonTrivialComponentInCon :: Con -> S.Set Name
@@ -186,7 +224,7 @@ genDataTransformer =
       let
         varNames = varNamesForNormalSlots slots
       in
-        varCode "funPrefix" <> staticCode tyNameStr <>
+        varCode "funPrefix" <> staticCode tyNameStr <> varCode "additionalArgsExp" <>
           " (" <> staticCode (intercalate " " (conNameStr : varNames)) <> ") = " <>
           intercalateCode " " (staticCode conNameStr : zipWith (\varNameStr (_, ty) -> exprFromType varNameStr ty) varNames slots) <>
           "\n"
@@ -195,7 +233,7 @@ genDataTransformer =
       let
         varNames = map (\(Name (OccName nameStr) _, _, _) -> nameStr) slots
       in
-        varCode "funPrefix" <> staticCode tyNameStr <>
+        varCode "funPrefix" <> staticCode tyNameStr <> varCode "additionalArgsExp" <>
           " (" <> staticCode (intercalate " " (conNameStr : varNames)) <> ") = " <>
           intercalateCode " " (staticCode conNameStr : zipWith (\varNameStr (_, _, ty) -> exprFromType varNameStr ty) varNames slots) <>
           "\n"
@@ -204,23 +242,26 @@ genDataTransformer =
 
   in
     \case
-      TyConI (DataD [] (Name (OccName tyNameStr) _) [] cons _) ->
+      TyConI (DataD [] (Name (OccName tyNameStr) _) bndrs cons _) ->
         let
-          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> varCode "additionalArgsType" <> tyNameBndrStrCode <> " -> " <> tyNameBndrStrCode <> "\n"
+          tyNameBndrStrCode = intercalateCode " " (map staticCode (tyNameStr : (extractTyVarBndrNameStr bndrs)))
 
         in
           mconcat $ typeSig : map (conToDef tyNameStr) cons
 
-      TyConI (TySynD (Name (OccName tyNameStr) _) [] ty) ->
+      TyConI (TySynD (Name (OccName tyNameStr) _) bndrs ty) ->
         let
-          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
-          def = varCode "funPrefix" <> staticCode tyNameStr <> " a = " <> exprFromType "a" ty <> "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> varCode "additionalArgsType" <> tyNameBndrStrCode <> " -> " <> tyNameBndrStrCode <> "\n"
+          tyNameBndrStrCode = intercalateCode " " (map staticCode (tyNameStr : (extractTyVarBndrNameStr bndrs)))
+          def = varCode "funPrefix" <> staticCode tyNameStr <> varCode "additionalArgsExp" <> " a = " <> exprFromType "a" ty <> "\n"
         in
           typeSig <> def
 
-      TyConI (NewtypeD [] (Name (OccName tyNameStr) _) [] con _) ->
+      TyConI (NewtypeD [] (Name (OccName tyNameStr) _) bndrs con _) ->
         let
-          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> staticCode tyNameStr <> " -> " <> staticCode tyNameStr <> "\n"
+          typeSig = varCode "funPrefix" <> staticCode tyNameStr <> " :: " <> varCode "additionalArgsType" <> tyNameBndrStrCode <> " -> " <> tyNameBndrStrCode <> "\n"
+          tyNameBndrStrCode = intercalateCode " " (map staticCode (tyNameStr : (extractTyVarBndrNameStr bndrs)))
           def = conToDef tyNameStr con
         in
           typeSig <> def
