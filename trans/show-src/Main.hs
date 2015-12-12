@@ -1,9 +1,6 @@
 module Main where
 
-import Language.Haskell.Exts.Parser
-import Language.Haskell.Exts.Extension
-import Language.Haskell.Exts.Syntax
-import Language.Haskell.Exts.Fixity (preludeFixities)
+import Language.Haskell.Exts.Annotated
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -86,5 +83,5 @@ myParseMode filename = ParseMode
   }
 
 main = interact $ \inputStr ->
-  let res = parseWithMode (myParseMode "mySource.hs") inputStr :: ParseResult Module
+  let res = parseWithMode (myParseMode "mySource.hs") inputStr :: ParseResult (Module SrcSpanInfo)
   in show res
