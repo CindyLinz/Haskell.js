@@ -57,8 +57,8 @@ trivialTypes = S.fromList ["String", "Maybe", "Int", "Rational", "Char", "Intege
 reservedNames :: S.Set String
 reservedNames = S.fromList ["type", "deriving"]
 
-deriveDesugarTemplate :: String -> String -> Q [Dec]
-deriveDesugarTemplate funName moduleNameStr = do
+deriveDesugarTemplate :: String -> String -> Bool -> Q [Dec]
+deriveDesugarTemplate funName moduleNameStr mode = do
   Just moduleName <- lookupTypeName moduleNameStr
 
   moduleInfo <- reify moduleName
@@ -75,7 +75,8 @@ deriveDesugarTemplate funName moduleNameStr = do
     --runIO $ putStrLn code
     return code
   let
-    generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\nimport Language.Haskell.Exts.Syntax\nimport Control.Arrow ((***))\n"] : allCode
+    importSyntax = if mode then "import Language.Haskell.Exts.Annotated.Syntax" else "import Language.Haskell.Exts.Syntax"
+    generatedExp = genCode $ mconcat $ CodeGen [StaticCode "module ", VarCode "modName", StaticCode " where\n", StaticCode importSyntax, StaticCode "\nimport Control.Arrow ((***))\n"] : allCode
   --ee <- generatedExp
   --runIO $ putStrLn $ pprint ee
   --runIO $ putStrLn $ show allCode

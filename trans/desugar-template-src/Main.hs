@@ -9,8 +9,8 @@ import Control.Applicative
 import Data.Functor
 import Data.Monoid
 
-$(deriveDesugarTemplate "genNormal" "Language.Haskell.Exts.Syntax.Module")
-$(deriveDesugarTemplate "genAnnotated" "Language.Haskell.Exts.Annotated.Syntax.Module")
+$(deriveDesugarTemplate "genNormal" "Language.Haskell.Exts.Syntax.Module" False)
+$(deriveDesugarTemplate "genAnnotated" "Language.Haskell.Exts.Annotated.Syntax.Module" True)
 
 main = do
   progName <- getProgName
