@@ -1,9 +1,6 @@
 module Main where
 
-import Language.Haskell.Exts.Parser
-import Language.Haskell.Exts.Extension
-import Language.Haskell.Exts.Syntax
-import Language.Haskell.Exts.Fixity (preludeFixities)
+import Language.Haskell.Exts.Annotated
 
 import Data.Monoid
 import Data.Char
@@ -101,79 +98,79 @@ escapeJSString ('\\' : others) = '\\' : '\\' : escapeJSString others
 escapeJSString (ch : others) = ch : escapeJSString others
 escapeJSString _ = ""
 
-transName :: Name -> String
-transName (Ident name) = "'" ++ escapeJSString name ++ "'"
-transName (Symbol symbol) = "'(" ++ escapeJSString symbol ++ ")'"
+transName :: Show l => Name l -> String
+transName (Ident l name) = "'" ++ escapeJSString name ++ "'"
+transName (Symbol l symbol) = "'(" ++ escapeJSString symbol ++ ")'"
 
-transQName :: QName -> String
-transQName (UnQual name) = "['var'," ++ transName name ++ "]"
-transQName (Special UnitCon) = "['var','()']"
-transQName (Special ListCon) = "['var','[]']"
-transQName (Special (TupleCon boxed n)) = "['var','(" ++ replicate (n - 1) ',' ++ ")']"
-transQName (Special Cons) = "['var','(:)']"
-transQName (Special UnboxedSingleCon) = "['var','()']"
-transQName (Qual _ _) = error "qualified name unimplemented"
+transQName :: Show l => QName l -> String
+transQName (UnQual l name) = "['var'," ++ transName name ++ "]"
+transQName (Special l (UnitCon l2)) = "['var','()']"
+transQName (Special l (ListCon l2)) = "['var','[]']"
+transQName (Special l (TupleCon l2 boxed n)) = "['var','(" ++ replicate (n - 1) ',' ++ ")']"
+transQName (Special l (Cons l2)) = "['var','(:)']"
+transQName (Special l (UnboxedSingleCon l2)) = "['var','()']"
+transQName (Qual l _ _) = error "qualified name unimplemented"
 
-transLit :: Literal -> String
-transLit (Char ch) = "['app', ['var', 'C#'], ['dat', String.fromCharCode(" ++ show (ord ch) ++ ")]]"
-transLit (Int i) = "['app', ['var', 'I#'], ['dat', " ++ show i ++ "]]"
+transLit :: Show l => Literal l -> String
+transLit (Char l ch rep) = "['app', ['var', 'C#'], ['dat', String.fromCharCode(" ++ show (ord ch) ++ ")]]"
+transLit (Int l i rep) = "['app', ['var', 'I#'], ['dat', " ++ show i ++ "]]"
 
-transLam :: [Pat] -> Exp -> String
-transLam (PVar name : ps) body = "['lam'," ++ transName name ++ "," ++ transLam ps body ++ "]"
+transLam :: Show l => [Pat l] -> Exp l -> String
+transLam (PVar l name : ps) body = "['lam'," ++ transName name ++ "," ++ transLam ps body ++ "]"
 transLam _ body = transExpr body
 
-transSign :: Sign -> String
-transSign Signless = ""
-transSign Negative = "-"
+transSign :: Show l => Sign l -> String
+transSign (Signless l) = ""
+transSign (Negative l) = "-"
 
-transExpr :: Exp -> String
-transExpr (Var qName) = transQName qName
-transExpr (Con qName) = transQName qName
-transExpr (Lit lit) = transLit lit
-transExpr (InfixApp a (QVarOp qName) b) = transExpr (App (App (Var qName) a) b)
-transExpr (InfixApp a (QConOp qName) b) = transExpr (App (App (Var qName) a) b)
-transExpr (App f x) = "['app'," ++ transExpr f ++ "," ++ transExpr x ++ "]"
-transExpr (NegApp x) = error "NegApp not defined"
-transExpr (Lambda loc pats body) = transLam pats body
-transExpr (Paren expr) = transExpr expr
-transExpr (List []) = "['var','[]']"
-transExpr (Let (BDecls binds) expr) =
+transExpr :: Show l => Exp l -> String
+transExpr (Var l qName) = transQName qName
+transExpr (Con l qName) = transQName qName
+transExpr (Lit l lit) = transLit lit
+transExpr (InfixApp l a (QVarOp l2 qName) b) = transExpr (App l (App l (Var l2 qName) a) b)
+transExpr (InfixApp l a (QConOp l2 qName) b) = transExpr (App l (App l (Var l2 qName) a) b)
+transExpr (App l f x) = "['app'," ++ transExpr f ++ "," ++ transExpr x ++ "]"
+transExpr (NegApp l x) = error "NegApp not defined"
+transExpr (Lambda l pats body) = transLam pats body
+transExpr (Paren l expr) = transExpr expr
+transExpr (List l []) = "['var','[]']"
+transExpr (Let l (BDecls l2 binds) expr) =
   "['app', ['app', ['var', 'Y#'], ['lam', 'gen#', ['lam', 'tuple#', " ++ genApp (reverse binds) ++ "]]], " ++ genIn binds ++ "]"
   where
-    genApp (PatBind _ (PVar name) _ _ : bs) = "['app', " ++ genApp bs ++ ", ['app', ['var', 'gen#'], " ++ genExtract binds ++ "]]"
+    genApp (PatBind l (PVar l2 name) _ _ : bs) = "['app', " ++ genApp bs ++ ", ['app', ['var', 'gen#'], " ++ genExtract binds ++ "]]"
       where
-        genExtract (PatBind _ (PVar lamName) _ _ : bs) = "['lam', " ++ transName lamName ++ ", " ++ genExtract bs ++ "]"
+        genExtract (PatBind l (PVar l2 lamName) _ _ : bs) = "['lam', " ++ transName lamName ++ ", " ++ genExtract bs ++ "]"
         genExtract _ = "['var', " ++ transName name ++ "]"
     genApp _ = genDestruct binds
-    genDestruct (PatBind _ (PVar name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genDestruct bs ++ "]"
+    genDestruct (PatBind l (PVar l2 name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genDestruct bs ++ "]"
     genDestruct _ = genDef (reverse binds)
-    genDef (PatBind _ _ (UnGuardedRhs expr) _ : bs) = "['app', " ++ genDef bs ++ ", " ++ transExpr expr ++ "]"
+    genDef (PatBind l _ (UnGuardedRhs l2 expr) _ : bs) = "['app', " ++ genDef bs ++ ", " ++ transExpr expr ++ "]"
     genDef _ = "['var', 'tuple#']"
-    genIn (PatBind _ (PVar name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genIn bs ++ "]"
+    genIn (PatBind l (PVar l2 name) _ _ : bs) = "['lam', " ++ transName name ++ ", " ++ genIn bs ++ "]"
     genIn _ = transExpr expr
-transExpr (Case target alts) = case alts of
-  (Alt _ (PVar name) (UnGuardedRhs expr) Nothing : _) -> -- case target of name -> expr
+transExpr (Case l target alts) = case alts of
+  (Alt l2 (PVar l3 name) (UnGuardedRhs l4 expr) Nothing : _) -> -- case target of name -> expr
     "['app',['lam'," ++ transName name ++ "," ++ transExpr expr ++ "]," ++ transExpr target ++ "]"
-  (Alt _ (PLit _ (Int _)) _ _ : _) -> -- 整數 literal: 1, 2, 3, ..
+  (Alt l2 (PLit l3 _ (Int l4 _ _)) _ _ : _) -> -- 整數 literal: 1, 2, 3, ..
     "['app', " ++ transExpr target ++ ", " ++ genPrimIntMatch alts ++ "]"
-  (Alt _ (PLit _ (PrimInt _)) _ _ : _) -> -- unbox 整數 literal: 1#, 2#, 3#, ...
+  (Alt l2 (PLit l3 _ (PrimInt l4 _ _)) _ _ : _) -> -- unbox 整數 literal: 1#, 2#, 3#, ...
     "['app', " ++ genPrimIntMatch alts ++ ", " ++ transExpr target ++ "]"
-  [Alt _ (PList []) (UnGuardedRhs exprNil) _, Alt _ (PApp _ [PVar aName, PVar asName]) (UnGuardedRhs exprCons) _ ] -> -- (G)ADT (for list)
+  [Alt l2 (PList l3 []) (UnGuardedRhs l4 exprNil) _, Alt l5 (PApp l6 _ [PVar l7 aName, PVar l8 asName]) (UnGuardedRhs l9 exprCons) _ ] -> -- (G)ADT (for list)
     "['app', ['app', " ++ transExpr target ++ ", " ++ transExpr exprNil ++ "], ['lam', " ++ transName aName ++ ", ['lam', " ++ transName asName ++ ", " ++ transExpr exprCons ++ "]]]"
-  (Alt _ (PApp _ _) _ _ : _) -> -- (G)ADT
+  (Alt l2 (PApp l3 _ _) _ _ : _) -> -- (G)ADT
     genApp (reverse alts)
     where
-      genApp (Alt _ (PApp (UnQual conName) vars) (UnGuardedRhs expr) Nothing : as) =
+      genApp (Alt l2 (PApp l3 (UnQual l4 conName) vars) (UnGuardedRhs l5 expr) Nothing : as) =
         "['app', " ++ genApp as ++ ", " ++ genLam vars ++ "]"
         where
-          genLam (PVar name : vs) = "['lam', " ++ transName name ++ ", " ++ genLam vs ++ "]"
-          genLam (PWildCard : vs) = "['lam', '_', " ++ genLam vs ++ "]"
+          genLam (PVar l2 name : vs) = "['lam', " ++ transName name ++ ", " ++ genLam vs ++ "]"
+          genLam (PWildCard l2 : vs) = "['lam', '_', " ++ genLam vs ++ "]"
           genLam _ = transExpr expr
       genApp _ = transExpr target
   _ -> error $ show alts ++ " unimplemented case pattern"
 transExpr others = error $ show others ++ " not implemented"
 
-genPrimIntMatch :: [Alt] -> String
+genPrimIntMatch :: Show l => [Alt l] -> String
 genPrimIntMatch alts =
   "['int', 'match-int#', 1, function(target){\n\
     \  var env = this;\n\
@@ -183,24 +180,25 @@ genPrimIntMatch alts =
     "  }\n\
   \}]"
   where
-    genBranch (Alt _ (PLit sign (PrimInt n)) rhs Nothing) =
+    genBranch (Alt l (PLit l2 sign (PrimInt l3 n _)) rhs Nothing) =
       "case " ++ transSign sign ++ show n ++ ": " ++ genRHS rhs
-    genBranch (Alt _ (PLit sign (Int n)) rhs Nothing) =
+    genBranch (Alt l (PLit l2 sign (Int l3 n _)) rhs Nothing) =
       "case " ++ transSign sign ++ show n ++ ": " ++ genRHS rhs
-    genBranch (Alt _ (PVar name) rhs Nothing) =
+    genBranch (Alt l (PVar l2 name) rhs Nothing) =
       "default: env = clone_env(env); env[" ++ transName name ++ "] = target; " ++ genRHS rhs
-    genBranch (Alt _ PWildCard rhs Nothing) =
+    genBranch (Alt l (PWildCard l2) rhs Nothing) =
       "default: " ++ genRHS rhs
     genBranch alt = error $ show alt ++ " not implemented PrimInt branch"
-    genRHS (UnGuardedRhs expr) = "return weak_normal_form({env: env, expr: " ++ transExpr expr ++ "});\n"
+    genRHS (UnGuardedRhs l expr) = "return weak_normal_form({env: env, expr: " ++ transExpr expr ++ "});\n"
 
-transDecl :: Decl -> String
-transDecl (PatBind loc (PVar name) (UnGuardedRhs expr) Nothing) =
+transDecl :: Show l => Decl l -> String
+transDecl (PatBind l (PVar l2 name) (UnGuardedRhs l3 expr) Nothing) =
   "env[" ++ transName name ++ "] = {env: env, expr: " ++ transExpr expr ++ "};\n\n"
-transDecl (GDataDecl loc DataType [] name [] mKinds gDecls []) = mconcat $ flip map gDecls $ \(GadtDecl loc name [] ty) ->
+transDecl (GDataDecl l (DataType l2) Nothing (DHead l3 name) mKinds gDecls Nothing) = mconcat $ flip map gDecls $ \(GadtDecl loc name Nothing ty) ->
   let
+    slotCount :: Int
     slotCount = count 0 ty where
-      count !acc (TyFun _ other) = count (acc + 1) other
+      count !acc (TyFun l _ other) = count (acc + 1) other
       count !acc _ = acc
 
     genSlots 0 = genBody gDecls
@@ -215,8 +213,8 @@ transDecl (GDataDecl loc DataType [] name [] mKinds gDecls []) = mconcat $ flip 
     "env[" ++ transName name ++ "] = {env: env, expr: " ++ genSlots slotCount ++ "};\n\n"
 transDecl decl = error $ show decl ++ " not implemented"
 
-transModule :: Module -> String
-transModule (Module moduleLoc moduleName pragmas mWarnings moduleExports moduleImports moduleDecls) =
+transModule :: Show l => Module l -> String
+transModule (Module l moduleName pragmas moduleImports moduleDecls) =
   mconcat $ map transDecl moduleDecls
 
 --newtype GadtSet = GadtSet [(Name, Int)]
@@ -240,10 +238,10 @@ transModule (Module moduleLoc moduleName pragmas mWarnings moduleExports moduleI
 desugarModule = deIfModule . deListModule . deWhereModule
 
 main = interact $ \inputStr ->
-  case parseWithMode (myParseMode "mySource.hs") inputStr of
+  case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
     ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
     ParseOk mod ->
-      case parseWithMode (myParseMode "Prelude.hs") srcPrelude of
+      case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
         ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
         ParseOk preludeMod ->
           genInit ++ genPreludeNative ++ transModule (desugarModule preludeMod) ++ transModule (desugarModule mod) ++ genRun

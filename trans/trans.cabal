@@ -15,6 +15,21 @@ build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
 
+executable trans
+  main-is:             Main.hs
+  -- other-modules:       
+  -- other-extensions:    
+  default-extensions:  OverloadedStrings
+                     , LambdaCase
+                     , BangPatterns
+                     , TupleSections
+                     , ViewPatterns
+  build-depends:       base >=4.7 && <4.8
+                     , haskell-src-exts ==1.17.*
+                     , containers ==0.5.*
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
 executable show
   main-is:             Main.hs
   -- other-modules:       
@@ -38,17 +53,4 @@ executable desugar-template
                      , template-haskell ==2.9.*
                      , containers ==0.5.*
   hs-source-dirs:      desugar-template-src
-  default-language:    Haskell2010
-
-executable trans
-  main-is:             Main.hs
-  -- other-modules:       
-  -- other-extensions:    
-  default-extensions:  OverloadedStrings
-                     , LambdaCase
-                     , BangPatterns
-  build-depends:       base >=4.7 && <4.8
-                     , haskell-src-exts ==1.17.*
-                     --, containers ==0.5.*
-  hs-source-dirs:      src
   default-language:    Haskell2010
