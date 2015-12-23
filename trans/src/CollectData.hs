@@ -9,11 +9,12 @@ import Control.Arrow
 
 import qualified Data.Map.Strict as M
 import Data.Monoid
+import ForgetL
 
 data DataShape = DataShape
   { dataLoc :: SrcSpanInfo
   , dataName :: Name ()
-  , dataCons :: [(Name (), Int)] -- [(data constructor name, number of slot)]
+  , dataCons :: [(Name (), Int, M.Map (Name ()) Int)] -- [(data constructor name, number of slot, record field's index)]
   } deriving Show
 type DataShapes = M.Map (Name ()) DataShape -- data type name to data shape
 
@@ -31,10 +32,6 @@ instance Monoid CollectDataResult where
       genTypeMsg name = "Duplicated data definitions for " ++ show name ++ " at " ++ show (dataLoc (formerType M.! name)) ++ " and " ++ show (dataLoc (laterType M.! name))
       genConMsg name = "Duplicated data constructors for " ++ show name ++ " at " ++ show (dataLoc (formerCon M.! name)) ++ " and " ++ show (dataLoc (laterCon M.! name))
 
-forgotNameL :: Name l -> Name ()
-forgotNameL (Ident l str) = Ident () str
-forgotNameL (Symbol l str) = Symbol () str
-
 declHeadName :: DeclHead l -> Name l
 declHeadName (DHead l name) = name
 declHeadName (DHInfix l tyVarBind name) = name
@@ -46,10 +43,10 @@ collectData (Module _loc _name _pragmas _imports decls) =
   mconcat (map collectDataDecl decls)
 
 collectDataDecl :: Decl SrcSpanInfo -> CollectDataResult
-collectDataDecl (DataDecl loc dn cxt (forgotNameL . declHeadName -> name) cons derivings) = CollectDataResult typeShapes conShapes errs
+collectDataDecl (DataDecl loc dn cxt (forgetLName . declHeadName -> name) cons derivings) = CollectDataResult typeShapes conShapes errs
   where
     typeShapes = M.singleton name shape
-    conShapes = M.fromList $ map (second (const shape)) (dataCons shape)
+    conShapes = M.fromList $ map (\(name, _, _) -> (name, shape)) (dataCons shape)
     errs =
       if M.size conShapes == length cons then
         []
@@ -63,13 +60,15 @@ collectDataDecl (DataDecl loc dn cxt (forgotNameL . declHeadName -> name) cons d
       }
 
     extract (QualConDecl _loc _tyVars cxt decl) = case decl of
-      ConDecl l name tys -> (forgotNameL name, length tys)
-      InfixConDecl l ty1 name ty2 -> (forgotNameL name, 2)
-      RecDecl l name fields -> (forgotNameL name, sum (map (\(FieldDecl l names ty) -> length names) fields))
-collectDataDecl (GDataDecl loc dn cxt (forgotNameL . declHeadName -> name) kind cons derivings) = CollectDataResult typeShapes conShapes errs
+      ConDecl l name tys -> (forgetLName name, length tys, M.empty)
+      InfixConDecl l ty1 name ty2 -> (forgetLName name, 2, M.empty)
+      RecDecl l name fields -> (forgetLName name, consSlotsNum, fieldsIndices) where
+        consSlotsNum = sum (map (\(FieldDecl l names ty) -> length names) fields)
+        fieldsIndices = (M.fromList . flip zip [0..] . map forgetLName . mconcat . map (\(FieldDecl l names ty) -> names)) fields
+collectDataDecl (GDataDecl loc dn cxt (forgetLName . declHeadName -> name) kind cons derivings) = CollectDataResult typeShapes conShapes errs
   where
     typeShapes = M.singleton name shape
-    conShapes = M.fromList $ map (second (const shape)) (dataCons shape)
+    conShapes = M.fromList $ map (\(name, _, _) -> (name, shape)) (dataCons shape)
     errs =
       if M.size conShapes == length cons then
         []
@@ -82,7 +81,9 @@ collectDataDecl (GDataDecl loc dn cxt (forgotNameL . declHeadName -> name) kind 
       , dataCons = map extract cons
       }
 
-    extract (GadtDecl _loc name recs ty) = (forgotNameL name, maybe 0 (sum . map (\(FieldDecl l names ty) -> length names)) recs + countTySlots 0 ty)
+    extract (GadtDecl _loc name recs ty) = (forgetLName name, consSlotsNum, fieldsIndices) where
+      consSlotsNum = maybe 0 (sum . map (\(FieldDecl l names ty) -> length names)) recs + countTySlots 0 ty
+      fieldsIndices = maybe M.empty (M.fromList . flip zip [0..] . map forgetLName . mconcat . map (\(FieldDecl l names ty) -> names)) recs
     countTySlots !acc (TyFun l _ remain) = countTySlots (acc + 1) remain
     countTySlots acc _ = acc
 collectDataDecl _ = CollectDataResult M.empty M.empty []
