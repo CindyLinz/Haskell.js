@@ -63,8 +63,8 @@ collectDataDecl (DataDecl loc dn cxt (forgetLName . declHeadName -> name) cons d
       ConDecl l name tys -> (forgetLName name, length tys, M.empty)
       InfixConDecl l ty1 name ty2 -> (forgetLName name, 2, M.empty)
       RecDecl l name fields -> (forgetLName name, consSlotsNum, fieldsIndices) where
-        consSlotsNum = sum (map (\(FieldDecl l names ty) -> length names) fields)
-        fieldsIndices = (M.fromList . flip zip [0..] . map forgetLName . mconcat . map (\(FieldDecl l names ty) -> names)) fields
+        consSlotsNum = sumFieldsSlotCount fields
+        fieldsIndices = collectFieldsIndices fields
 collectDataDecl (GDataDecl loc dn cxt (forgetLName . declHeadName -> name) kind cons derivings) = CollectDataResult typeShapes conShapes errs
   where
     typeShapes = M.singleton name shape
@@ -82,8 +82,14 @@ collectDataDecl (GDataDecl loc dn cxt (forgetLName . declHeadName -> name) kind 
       }
 
     extract (GadtDecl _loc name recs ty) = (forgetLName name, consSlotsNum, fieldsIndices) where
-      consSlotsNum = maybe 0 (sum . map (\(FieldDecl l names ty) -> length names)) recs + countTySlots 0 ty
-      fieldsIndices = maybe M.empty (M.fromList . flip zip [0..] . map forgetLName . mconcat . map (\(FieldDecl l names ty) -> names)) recs
+      consSlotsNum = maybe 0 sumFieldsSlotCount recs + countTySlots 0 ty
+      fieldsIndices = maybe M.empty collectFieldsIndices recs
     countTySlots !acc (TyFun l _ remain) = countTySlots (acc + 1) remain
     countTySlots acc _ = acc
 collectDataDecl _ = CollectDataResult M.empty M.empty []
+
+collectFieldsIndices :: [FieldDecl l] -> M.Map (Name ()) Int
+collectFieldsIndices = M.fromList . flip zip [0..] . map forgetLName . mconcat . map (\(FieldDecl l names ty) -> names)
+
+sumFieldsSlotCount :: [FieldDecl l] -> Int
+sumFieldsSlotCount = sum . map (\(FieldDecl l names ty) -> length names)
