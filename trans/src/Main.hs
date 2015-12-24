@@ -2,7 +2,7 @@ module Main where
 
 import Language.Haskell.Exts.Annotated
 
-import Data.Monoid
+import Data.Monoid hiding (Alt)
 import Data.Char
 -- import qualified Data.Map.Strict as M
 
