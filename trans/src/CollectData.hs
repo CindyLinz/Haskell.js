@@ -3,6 +3,10 @@ module CollectData
   , CollectDataResult (..)
   , DataShape (..)
   , DataShapes
+  , qNameAddModule
+  , dataShapeAddModule
+  , dataShapesAddModule
+  , collectDataResultAddModule
   ) where
 import Language.Haskell.Exts.Annotated
 import Control.Arrow
@@ -13,10 +17,28 @@ import ForgetL
 
 data DataShape = DataShape
   { dataLoc :: SrcSpanInfo
-  , dataName :: Name ()
-  , dataCons :: [(Name (), Int, M.Map (Name ()) Int)] -- [(data constructor name, number of slot, record field's index)]
+  , dataName :: QName ()
+  , dataCons :: [(QName (), Int, M.Map (Name ()) Int)] -- [(data constructor name, number of slot, record field's index)]
   } deriving Show
-type DataShapes = M.Map (Name ()) DataShape -- data type name to data shape
+type DataShapes = M.Map (QName ()) DataShape -- data type name to data shape
+
+qNameAddModule :: ModuleName () -> QName () -> QName ()
+qNameAddModule mod = \case
+  UnQual _ name -> Qual () mod name
+  others -> others
+
+dataShapeAddModule :: ModuleName () -> DataShape -> DataShape
+dataShapeAddModule mod (DataShape loc name cons) = DataShape
+  loc
+  (qNameAddModule mod name)
+  (map (\(conName, slotN, rIndices) -> (qNameAddModule mod conName, slotN, rIndices)) cons)
+
+dataShapesAddModule :: ModuleName () -> DataShapes -> DataShapes
+dataShapesAddModule mod shapes = M.fromList $ map (qNameAddModule mod *** dataShapeAddModule mod) $ M.toList shapes
+
+collectDataResultAddModule :: ModuleName () -> CollectDataResult -> CollectDataResult
+collectDataResultAddModule mod (CollectDataResult tyToShapes conToShapes err) =
+  CollectDataResult (dataShapesAddModule mod tyToShapes) (dataShapesAddModule mod conToShapes) err
 
 data CollectDataResult = CollectDataResult
   { dataTypeToShape :: DataShapes
@@ -32,9 +54,9 @@ instance Monoid CollectDataResult where
       genTypeMsg name = "Duplicated data definitions for " ++ show name ++ " at " ++ show (dataLoc (formerType M.! name)) ++ " and " ++ show (dataLoc (laterType M.! name))
       genConMsg name = "Duplicated data constructors for " ++ show name ++ " at " ++ show (dataLoc (formerCon M.! name)) ++ " and " ++ show (dataLoc (laterCon M.! name))
 
-declHeadName :: DeclHead l -> Name l
-declHeadName (DHead l name) = name
-declHeadName (DHInfix l tyVarBind name) = name
+declHeadName :: DeclHead l -> QName l
+declHeadName (DHead l name) = UnQual l name
+declHeadName (DHInfix l tyVarBind name) = UnQual l name
 declHeadName (DHParen l head) = declHeadName head
 declHeadName (DHApp l head tyVarBind) = declHeadName head
 
@@ -60,9 +82,9 @@ collectDataDecl (DataDecl loc dn cxt (forgetL . declHeadName -> name) cons deriv
       }
 
     extract (QualConDecl _loc _tyVars cxt decl) = case decl of
-      ConDecl l name tys -> (forgetL name, length tys, M.empty)
-      InfixConDecl l ty1 name ty2 -> (forgetL name, 2, M.empty)
-      RecDecl l name fields -> (forgetL name, consSlotsNum, fieldsIndices) where
+      ConDecl l name tys -> (forgetL (UnQual l name), length tys, M.empty)
+      InfixConDecl l ty1 name ty2 -> (forgetL (UnQual l name), 2, M.empty)
+      RecDecl l name fields -> (forgetL (UnQual l name), consSlotsNum, fieldsIndices) where
         consSlotsNum = sumFieldsSlotCount fields
         fieldsIndices = collectFieldsIndices fields
 collectDataDecl (GDataDecl loc dn cxt (forgetL . declHeadName -> name) kind cons derivings) = CollectDataResult typeShapes conShapes errs
@@ -81,7 +103,7 @@ collectDataDecl (GDataDecl loc dn cxt (forgetL . declHeadName -> name) kind cons
       , dataCons = map extract cons
       }
 
-    extract (GadtDecl _loc name recs ty) = (forgetL name, consSlotsNum, fieldsIndices) where
+    extract (GadtDecl _loc name recs ty) = (forgetL (UnQual undefined name), consSlotsNum, fieldsIndices) where
       consSlotsNum = maybe 0 sumFieldsSlotCount recs + countTySlots 0 ty
       fieldsIndices = maybe M.empty collectFieldsIndices recs
     countTySlots !acc (TyFun l _ remain) = countTySlots (acc + 1) remain
