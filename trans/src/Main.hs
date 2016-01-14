@@ -8,9 +8,12 @@ import Data.Char
 
 import RuntimeSource
 
+import CollectData
+
 import DeIf
 import DeList
 import DeWhere
+import DeCaseReorder
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -244,4 +247,10 @@ main = interact $ \inputStr ->
       case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
         ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
         ParseOk preludeMod ->
-          genInit ++ genPreludeNative ++ transModule (desugarModule preludeMod) ++ transModule (desugarModule mod) ++ genRun
+          let
+            preludeData = collectDataResultAddModule (ModuleName () "Prelude") $ collectData preludeMod
+            mainData = collectDataResultAddModule (ModuleName () "Main") $ collectData mod
+            allData = preludeData <> mainData
+          in
+            show allData ++
+            genInit ++ genPreludeNative ++ transModule (desugarModule preludeMod) ++ transModule (desugarModule mod) ++ genRun

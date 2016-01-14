@@ -18,6 +18,10 @@ data Either :: * -> * -> * where
   Left :: a -> Either a b
   Right :: b -> Either a b
 
+data Maybe :: * -> * where
+  Nothing :: Maybe a
+  Just :: a -> Maybe a
+
 data Pair :: * -> * -> * where
   Pair :: a -> b -> Pair a b
 
