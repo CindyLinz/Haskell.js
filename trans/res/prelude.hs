@@ -18,8 +18,9 @@ data Either :: * -> * -> * where
   Left :: a -> Either a b
   Right :: b -> Either a b
 
-data Pair :: * -> * -> * where
-  Pair :: a -> b -> Pair a b
+data Maybe :: * -> * where
+  Nothing :: Maybe a
+  Just :: a -> Maybe a
 
 -- [a] 語法特殊, 不用 Haskell 定義
 

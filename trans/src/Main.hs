@@ -8,9 +8,13 @@ import Data.Char
 
 import RuntimeSource
 
+import CollectData
+import ForgetL
+
 import DeIf
 import DeList
 import DeWhere
+import DeCaseReorder
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -109,11 +113,14 @@ transQName (Special l (ListCon l2)) = "['var','[]']"
 transQName (Special l (TupleCon l2 boxed n)) = "['var','(" ++ replicate (n - 1) ',' ++ ")']"
 transQName (Special l (Cons l2)) = "['var','(:)']"
 transQName (Special l (UnboxedSingleCon l2)) = "['var','()']"
-transQName (Qual l _ _) = error "qualified name unimplemented"
+transQName (Qual l _ name) = "['var'," ++ transName name ++ "]"
+-- XXX: qualified name implemented incorrectly
+--transQName (Qual l _ _) = error "qualified name unimplemented"
 
 transLit :: Show l => Literal l -> String
 transLit (Char l ch rep) = "['app', ['var', 'C#'], ['dat', String.fromCharCode(" ++ show (ord ch) ++ ")]]"
 transLit (Int l i rep) = "['app', ['var', 'I#'], ['dat', " ++ show i ++ "]]"
+transLit other = error $ "transLit: " ++ show (forgetL other) ++ " not supported"
 
 transLam :: Show l => [Pat l] -> Exp l -> String
 transLam (PVar l name : ps) body = "['lam'," ++ transName name ++ "," ++ transLam ps body ++ "]"
@@ -235,7 +242,8 @@ transModule (Module l moduleName pragmas moduleImports moduleDecls) =
 --
 --    _ -> M.empty
 
-desugarModule = deIfModule . deListModule . deWhereModule
+desugarModule0 = deIfModule . deListModule . deWhereModule
+desugarModule dataShapes = deCaseReorderModule dataShapes . deIfModule . deListModule . deWhereModule
 
 main = interact $ \inputStr ->
   case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
@@ -244,4 +252,19 @@ main = interact $ \inputStr ->
       case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
         ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
         ParseOk preludeMod ->
-          genInit ++ genPreludeNative ++ transModule (desugarModule preludeMod) ++ transModule (desugarModule mod) ++ genRun
+          let
+            preludeData = collectData preludeMod
+            mainData = collectData mod
+            --preludeData = collectDataResultAddModule (ModuleName () "Prelude") $ collectData preludeMod
+            --mainData = collectDataResultAddModule (ModuleName () "Main") $ collectData mod
+            allData = preludeData <> mainData
+          in
+            {-
+            show preludeData ++
+            "\n\n" ++
+            show mainData ++
+            "\n\n" ++
+            show allData ++
+            "\n\n" ++
+            -}
+            genInit ++ genPreludeNative ++ transModule (desugarModule0 preludeMod) ++ transModule (desugarModule allData mod) ++ genRun
