@@ -540,8 +540,9 @@ srcPrelude = "{-# LANGUAGE GADTs, KindSignatures, MagicHash #-}\n\
 \  Left :: a -> Either a b\n\
 \  Right :: b -> Either a b\n\
 \\n\
-\data Pair :: * -> * -> * where\n\
-\  Pair :: a -> b -> Pair a b\n\
+\data Maybe :: * -> * where\n\
+\  Nothing :: Maybe a\n\
+\  Just :: a -> Maybe a\n\
 \\n\
 \-- [a] 語法特殊, 不用 Haskell 定義\n\
 \\n\
