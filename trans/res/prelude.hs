@@ -22,9 +22,6 @@ data Maybe :: * -> * where
   Nothing :: Maybe a
   Just :: a -> Maybe a
 
-data Pair :: * -> * -> * where
-  Pair :: a -> b -> Pair a b
-
 -- [a] 語法特殊, 不用 Haskell 定義
 
 (++) = \as bs -> case as of

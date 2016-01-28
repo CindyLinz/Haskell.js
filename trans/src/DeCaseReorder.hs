@@ -1,42 +1,133 @@
 module DeCaseReorder where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
+import qualified Data.Map.Strict as M
 
 import CollectData
+import ForgetL
+
+data OrderedCase l
+  = OrderedCase
+    (Name l) -- target variable name x0-, x1-..
+    [FallbackGroup l]
+  | OrderedCaseRHS (Rhs l) (Maybe (Binds l))
 
 data FallbackGroup l
-  = GroupWildCard l (Rhs l) (Maybe (Binds l))
-  | GroupVar l (Name l) (Rhs l) (Maybe (Binds l))
-  | GroupCon l [(l, QName l, [Pat l], Rhs l, Maybe (Binds l))]
-  | GroupLit l [(l, Sign l, Literal l, Rhs l, Maybe (Binds l))]
+  = GroupWildCard l (OrderedCase l)
+  | GroupVar l (Name l) (OrderedCase l)
+  | GroupCon l [FallbackGroupConBranch l]
+  | GroupLit l [FallbackGroupLitBranch l]
 
-fallbackGroup :: [Alt l] -> [[Alt l]]
-fallbackGroup alts = go alts where
-  mergeable (Alt _ (PWildCard _) _ _) = False
-  mergeable (Alt _ (PVar _ _) _ _) = False
-  mergeable _ = True
+data FallbackGroupConBranch l = GroupConBranch
+  l
+  (QName l) -- constructor
+  {-# UNPACK #-} !Int -- slot number
+  (OrderedCase l)
+data FallbackGroupConBranchBuilding l = GroupConBranchBuilding
+  l
+  (QName l) -- constructor
+  {-# UNPACK #-} !Int -- slot number
+  [AltPartial l]
 
-  go [] = []
-  go (a:as)
-    | mergeable a = go2 (a :) as
-    | otherwise = [a] : go as
+data AltPartial l = AltPartial
+  [Pat l]
+  (Rhs l)
+  (Maybe (Binds l))
 
-  go2 prevs [] = [prevs []]
-  go2 prevs (a:as)
-    | mergeable a = go2 (prevs . (a :)) as
-    | otherwise = prevs [] : [a] : go as
+data FallbackGroupLitBranch l = GroupLitBranch
+  l
+  (Sign l)
+  (Literal l)
+  (OrderedCase l)
 
-groupsToExp :: l -> Int -> [[Alt l]] -> Exp l
-groupsToExp l expN groups = Let l (BDecls l [PatBind l (PVar l (Ident l "fallback+")) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing]) bodyExp where
-  bodyExp = genBody groups
-  genBody [] = Var l (UnQual l (Ident l "fallback+"))
-  genBody (g:gs) = Let l (BDecls l [PatBind l (PVar l (Ident l "fallback-")) (UnGuardedRhs l (genBody gs)) Nothing]) groupExp where
-    groupExp 
+dataShapeToConBranches :: l -> DataShape -> [FallbackGroupConBranchBuilding l]
+dataShapeToConBranches l shape =
+  map (\(conName, slotN, _) -> GroupConBranchBuilding l (fmap (const l) conName) slotN []) (dataCons shape)
 
-reorder newVarNum fallbackNum (Case l exp alts) = case alts of
-  [] -> Var l (Qual l (ModuleName l "Prelude") (Ident l "undefined"))
-  (Alt l1 (PWildCard _) rhs binds : alts) -> undefined -- tryRHS rhs binds alts
-  (Alt l1 (PVar l2 var) rhs binds : alts) -> undefined
+sortPat :: forall l. IndexDataShapes -> l -> [AltPartial l] -> OrderedCase l
+sortPat conMap l alts = OrderedCase (Ident l "x0-") (grouping alts)
+  where
+    grouping :: [AltPartial l] -> [FallbackGroup l]
+    grouping [] = []
+    grouping (g:gs) = case g of
+      AltPartial [] rhs binds -> undefined
+      AltPartial (PWildCard _ : patsLater) rhs binds -> GroupWildCard l (OrderedCaseRHS rhs binds) : grouping gs
+      AltPartial (PVar _ name : patsLater) rhs binds -> GroupVar l name (OrderedCaseRHS rhs binds) : grouping gs
+      AltPartial (PApp _ name pats : patsLater) rhs binds ->
+        let
+          shape = snd $ conMap M.! forgetL name
+          branchesSeed = dataShapeToConBranches l shape
+
+          eatCons :: [FallbackGroupConBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupConBranch l], [AltPartial l])
+          eatCons acc [] = (map buildBranch acc, [])
+          eatCons acc gg@(g:gs) = case g of
+            AltPartial (PApp _ name pats : patsLater) rhs binds ->
+              let
+                i = fst $ conMap M.! forgetL name
+                acc' = zipWith
+                  (\j br@(GroupConBranchBuilding l con slotNum os) ->
+                    if j == i then
+                      GroupConBranchBuilding l con slotNum (os ++ [AltPartial pats rhs binds])
+                    else
+                      br
+                  ) [0..] acc
+              in
+                eatCons acc' gs
+            _ -> (map buildBranch acc, gg)
+
+          buildBranch :: FallbackGroupConBranchBuilding l -> FallbackGroupConBranch l
+          buildBranch = undefined
+
+          (brs, gs') = eatCons branchesSeed (g:gs)
+        in
+          GroupCon l brs : grouping gs'
+
+--fallbackGroup :: [Alt l] -> [[Alt l]]
+--fallbackGroup alts = go alts where
+--  mergeable (Alt _ (PWildCard _) _ _) = False
+--  mergeable (Alt _ (PVar _ _) _ _) = False
+--  mergeable _ = True
+--
+--  go [] = []
+--  go (a:as)
+--    | mergeable a = go2 (a :) as
+--    | otherwise = [a] : go as
+--
+--  go2 prevs [] = [prevs []]
+--  go2 prevs (a:as)
+--    | mergeable a = go2 (prevs . (a :)) as
+--    | otherwise = prevs [] : [a] : go as
+
+rhsToExp :: Rhs l -> Exp l
+rhsToExp (UnGuardedRhs l exp) = exp
+rhsToExp (GuardedRhss l guards) =
+  Let l (BDecls l [PatBind l (PVar l (Ident l "fallback+")) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing]) bodyExp where
+    bodyExp = go guards
+    go (GuardedRhs l1 [Qualifier l2 cond] exp : gs) =
+      Let l1 (BDecls l1 [PatBind l1 (PVar l1 (Ident l1 "fallback-")) (UnGuardedRhs l1 (go gs)) Nothing]) bodyExp where
+        bodyExp = Case l2 cond
+          [ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+          , Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
+          ]
+    go (g : gs) =
+      error $ "Unsupported guard stmt: " ++ show (forgetL g)
+    go _ =
+      Var l (UnQual l (Ident l "fallback+"))
+
+--groupsToExp :: l -> Int -> [FallbackGroup l] -> Exp l
+--groupsToExp l expN groups = Let l (BDecls l [PatBind l (PVar l (Ident l "fallback+")) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing]) bodyExp where
+--  bodyExp = genBody groups
+--  genBody [] = Var l (UnQual l (Ident l "fallback+"))
+--  genBody (g:gs) = Let l (BDecls l [PatBind l (PVar l (Ident l "fallback-")) (UnGuardedRhs l (genBody gs)) Nothing]) groupExp where
+--    groupExp = case g of -- 未處理 binds (where)
+--      GroupWildCard l1 rhs binds -> rhsToExp rhs
+--      GroupVar l1 var rhs binds ->
+--        Let l1 (BDecls l1 [PatBind l1 (PVar l1 var) (UnGuardedRhs l1 (Var l1 (UnQual l1 (Ident l1 ("x" ++ show expN))))) Nothing]) (rhsToExp rhs)
+
+--reorder newVarNum fallbackNum (Case l exp alts) = case alts of
+--  [] -> Var l (Qual l (ModuleName l "Prelude") (Ident l "undefined"))
+--  (Alt l1 (PWildCard _) rhs binds : alts) -> undefined -- tryRHS rhs binds alts
+--  (Alt l1 (PVar l2 var) rhs binds : alts) -> undefined
 
 deCaseReorderActivation :: CollectDataResult -> Activation l -> Activation l
 deCaseReorderActivation a1 (ActiveFrom l int) = ActiveFrom (id l) (id int)
@@ -160,7 +251,8 @@ deCaseReorderExp a1 (Lambda l pat exp) = Lambda (id l) (fmap (deCaseReorderPat a
 deCaseReorderExp a1 (Let l binds exp) = Let (id l) (deCaseReorderBinds a1 binds) (deCaseReorderExp a1 exp)
 deCaseReorderExp a1 (If l exp1 exp2 exp3) = If (id l) (deCaseReorderExp a1 exp1) (deCaseReorderExp a1 exp2) (deCaseReorderExp a1 exp3)
 deCaseReorderExp a1 (MultiIf l guardedRhs) = MultiIf (id l) (fmap (deCaseReorderGuardedRhs a1) guardedRhs)
-deCaseReorderExp a1 c@(Case l exp alt) = reorder 1 0 c
+deCaseReorderExp a1 c@(Case l exp alt) = -- reorder 1 0 c
+  undefined
 -- Case (id l) (deCaseReorderExp a1 exp) (fmap (deCaseReorderAlt a1) alt)
 deCaseReorderExp a1 (Do l stmt) = Do (id l) (fmap (deCaseReorderStmt a1) stmt)
 deCaseReorderExp a1 (MDo l stmt) = MDo (id l) (fmap (deCaseReorderStmt a1) stmt)

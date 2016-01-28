@@ -3,6 +3,7 @@ module CollectData
   , CollectDataResult (..)
   , DataShape (..)
   , DataShapes
+  , IndexDataShapes
   , qNameAddModule
   , dataShapeAddModule
   , dataShapesAddModule
@@ -21,6 +22,7 @@ data DataShape = DataShape
   , dataCons :: [(QName (), Int, M.Map (Name ()) Int)] -- [(data constructor name, number of slot, record field's index)]
   } deriving Show
 type DataShapes = M.Map (QName ()) DataShape -- data type name to data shape
+type IndexDataShapes = M.Map (QName ()) (Int, DataShape)
 
 qNameAddModule :: ModuleName () -> QName () -> QName ()
 qNameAddModule mod = \case
@@ -36,13 +38,16 @@ dataShapeAddModule mod (DataShape loc name cons) = DataShape
 dataShapesAddModule :: ModuleName () -> DataShapes -> DataShapes
 dataShapesAddModule mod shapes = M.fromList $ map (qNameAddModule mod *** dataShapeAddModule mod) $ M.toList shapes
 
+indexDataShapesAddModule :: ModuleName () -> IndexDataShapes -> IndexDataShapes
+indexDataShapesAddModule mod shapes = M.fromList $ map (qNameAddModule mod *** second (dataShapeAddModule mod)) $ M.toList shapes
+
 collectDataResultAddModule :: ModuleName () -> CollectDataResult -> CollectDataResult
 collectDataResultAddModule mod (CollectDataResult tyToShapes conToShapes err) =
-  CollectDataResult (dataShapesAddModule mod tyToShapes) (dataShapesAddModule mod conToShapes) err
+  CollectDataResult (dataShapesAddModule mod tyToShapes) (indexDataShapesAddModule mod conToShapes) err
 
 data CollectDataResult = CollectDataResult
   { dataTypeToShape :: DataShapes
-  , dataConToShape :: DataShapes
+  , dataConToShape :: IndexDataShapes
   , dataError :: [String]
   } deriving Show
 instance Monoid CollectDataResult where
@@ -52,7 +57,7 @@ instance Monoid CollectDataResult where
       mergeTypeErr = map (genTypeMsg . fst) . M.toList $ M.intersection formerType laterType
       mergeConErr = map (genConMsg . fst) . M.toList $ M.intersection formerCon laterCon
       genTypeMsg name = "Duplicated data definitions for " ++ show name ++ " at " ++ show (dataLoc (formerType M.! name)) ++ " and " ++ show (dataLoc (laterType M.! name))
-      genConMsg name = "Duplicated data constructors for " ++ show name ++ " at " ++ show (dataLoc (formerCon M.! name)) ++ " and " ++ show (dataLoc (laterCon M.! name))
+      genConMsg name = "Duplicated data constructors for " ++ show name ++ " at " ++ show (dataLoc (snd $ formerCon M.! name)) ++ " and " ++ show (dataLoc (snd $ laterCon M.! name))
 
 declHeadName :: DeclHead l -> QName l
 declHeadName (DHead l name) = UnQual l name
@@ -68,7 +73,7 @@ collectDataDecl :: Decl SrcSpanInfo -> CollectDataResult
 collectDataDecl (DataDecl loc dn cxt (forgetL . declHeadName -> name) cons derivings) = CollectDataResult typeShapes conShapes errs
   where
     typeShapes = M.singleton name shape
-    conShapes = M.fromList $ map (\(name, _, _) -> (name, shape)) (dataCons shape)
+    conShapes = M.fromList $ zipWith (\i (name, _, _) -> (name, (i, shape))) [0..] (dataCons shape)
     errs =
       if M.size conShapes == length cons then
         []
@@ -90,7 +95,7 @@ collectDataDecl (DataDecl loc dn cxt (forgetL . declHeadName -> name) cons deriv
 collectDataDecl (GDataDecl loc dn cxt (forgetL . declHeadName -> name) kind cons derivings) = CollectDataResult typeShapes conShapes errs
   where
     typeShapes = M.singleton name shape
-    conShapes = M.fromList $ map (\(name, _, _) -> (name, shape)) (dataCons shape)
+    conShapes = M.fromList $ zipWith (\i (name, _, _) -> (name, (i, shape))) [0..] (dataCons shape)
     errs =
       if M.size conShapes == length cons then
         []

@@ -112,7 +112,9 @@ transQName (Special l (ListCon l2)) = "['var','[]']"
 transQName (Special l (TupleCon l2 boxed n)) = "['var','(" ++ replicate (n - 1) ',' ++ ")']"
 transQName (Special l (Cons l2)) = "['var','(:)']"
 transQName (Special l (UnboxedSingleCon l2)) = "['var','()']"
-transQName (Qual l _ _) = error "qualified name unimplemented"
+transQName (Qual l _ name) = "['var'," ++ transName name ++ "]"
+-- XXX: qualified name implemented incorrectly
+--transQName (Qual l _ _) = error "qualified name unimplemented"
 
 transLit :: Show l => Literal l -> String
 transLit (Char l ch rep) = "['app', ['var', 'C#'], ['dat', String.fromCharCode(" ++ show (ord ch) ++ ")]]"

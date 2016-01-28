@@ -1,10 +1,14 @@
-main = case Just (Just 3) of
+data Pair :: * -> * -> * where
+  Pair :: a -> b -> Pair a b
+
+main = case Just (Just (Pair 3 5)) of
   _ | False -> putStrLn "Any"
 
 
   Just Nothing | False -> putStrLn "Just Nothing False"
-  Just (Just a) | a <= 3 -> putStrLn "Just (Just a) | a <= 3"
-  Just (Just b) | b <= 3 -> putStrLn "Just (Just b) | b <= 3"
+  Just (Just (Pair a c)) | a <= 3 -> putStrLn "Just (Just (Pair a c)) | a <= 3"
+  Just (Just (Pair b _)) | b <= 3 -> putStrLn "Just (Just (Pair b _)) | b <= 3"
+  Just (Just (Pair _ 4)) -> putStrLn "Just (Just (Pair _ 4))"
 
   Just a | False -> putStrLn "Just a | False"
 
@@ -19,7 +23,7 @@ main = case Just (Just 3) of
 
 -- let
 --   fallback- = undefined
---   x1- = Just (Just 3)
+--   x1- = Just (Just (Pair 3 5))
 -- in
 --   let
 --     fallback+ = fallback-
@@ -34,12 +38,25 @@ main = case Just (Just 3) of
 --               let
 --                 a = x1-
 --               in
---                 case False of
---                   False ->
---                     case True of
---                       False -> putStrLn "a all otherwise"
---                       True -> putStrLn "a all True"
---                   True -> putStrLn "a all False"
+--                 let
+--                   fallback+ = fallback-
+--                 in
+--                   let
+--                     fallback- =
+--                       let
+--                         fallback- =
+--                           let
+--                             fallback- = fallback+
+--                           in
+--                             putStrLn "a all otherwise"
+--                       in
+--                         case True of
+--                           False -> fallback-
+--                           True -> putStrLn "a all True"
+--                   in
+--                     case False of
+--                       False -> fallback-
+--                       True -> putStrLn "a all False"
 --         in
 --           case x1- of
 --             Nothing -> putStrLn "Nothing"
@@ -63,7 +80,7 @@ main = case Just (Just 3) of
 --                     in
 --                       let
 --                         a = x1-
---                       in
+--                       in -- 只有一個 guard branch, 可以考慮把 fallback+ fallback- 的耦極生成省掉
 --                         case False of
 --                           False -> fallback-
 --                           True -> putStrLn "Just a | False"
@@ -73,28 +90,69 @@ main = case Just (Just 3) of
 --                       case False of
 --                         False -> fallback-
 --                         True -> putStrLn "Just Nothing"
---                     Just x2- ->
---                       let
+--                     Just x1- ->
+--                       let -- 只有一種 branch 的話, 可以考慮把 fallback+ fallback- 的耦極生成省掉
 --                         fallback+ = fallback-
 --                       in
 --                         let
---                           fallback- =
---                             let
---                               fallback- = fallback+
---                             in
---                               let
---                                 b = x2-
---                               in
---                                 case b <= 3 of
---                                   False -> fallback-
---                                   True -> putStrLn "Just (Just b) | b <= 3"
+--                           fallback- = fallback+
 --                         in
---                           let
---                             a = x2-
---                           in
---                             case a <= 3 of
---                               False -> fallback-
---                               True -> putStrLn "Just (Just a) | a <= 3"
+--                           case x1- of
+--                             Pair x1- x2- ->
+--                               let
+--                                 fallback+ = fallback-
+--                               in
+--                                 let
+--                                   fallback- =
+--                                     let
+--                                       fallback- =
+--                                         let
+--                                           fallback- = fallback+
+--                                         in
+--                                           let
+--                                             fallback+ = fallback-
+--                                           in
+--                                             let
+--                                               fallback- = fallback+
+--                                             in
+--                                               case x2- of
+--                                                 4 -> putStrLn "Just (Just (Pair _ 4))"
+--                                                 _ -> fallback-
+--                                     in
+--                                       let
+--                                         b = x1-
+--                                       in
+--                                         case b <= 3 of
+--                                           False -> fallback-
+--                                           True -> putStrLn "Just (Just (Pair b _)) | b <= 3"
+--                                 in
+--                                   let
+--                                     a = x1-
+--                                   in
+--                                     let
+--                                       c = x2-
+--                                     in
+--                                       case a <= 3 of
+--                                         False -> fallback-
+--                                         True -> putStrLn "Just (Just (Pair a c)) | a <= 3"
+----                         let
+----                           fallback- =
+----                             let
+----                               fallback- = fallback+
+----                             in
+----                               let
+----                                 b = x1-
+----                               in
+----                                 case b <= 3 of
+----                                   False -> fallback-
+----                                   True -> putStrLn "Just (Just b) | b <= 3"
+----                         in
+----                           let
+----                             a = x1-
+----                           in
+----                             case a <= 3 of
+----                               False -> fallback-
+----                               True -> putStrLn "Just (Just a) | a <= 3"
 --     in
 --       case False of
 --         False -> fallback-
