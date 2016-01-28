@@ -88,7 +88,7 @@ buildReorder conMap l = sortPat 0 1
     sortPat b e [] = error "sortPat: empty alts"
     sortPat b e [AltPartial [] rhs binds] = OrderedCaseRHS rhs binds
     sortPat b e (AltPartial [] rhs binds : _) = error "buildReorder-sortPat: non-singleton leading empty pattern"
-    sortPat b e alts = OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
+    sortPat b e alts = {- trace ("sortPat " ++ show (fmap forgetL alts)) $ -} OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
       grouping :: [AltPartial l] -> [FallbackGroup l]
       grouping [] = []
       grouping (g:gs) = case g of
@@ -104,6 +104,8 @@ buildReorder conMap l = sortPat 0 1
             eatCons :: [FallbackGroupConBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupConBranch l], [AltPartial l])
             eatCons acc [] = (map buildBranch acc, [])
             eatCons acc gg@(g:gs) = {- trace ("eatCons " ++ show (length acc) ++ " " ++ show (forgetL g)) $ -} case g of
+              AltPartial (PParen _ p : patsLater) rhs binds ->
+                eatCons acc (AltPartial (p : patsLater) rhs binds : gs)
               AltPartial (PApp _ name pats : patsLater) rhs binds ->
                 let
                   i = fst $ conMap M.! {- traceShowId -} (forgetL name)
@@ -168,9 +170,12 @@ rhsToExp (GuardedRhss l guards) =
     go (GuardedRhs l1 [Qualifier l2 cond] exp : gs) =
       Let l1 (BDecls l1 [PatBind l1 (PVar l1 (Ident l1 "fallback-")) (UnGuardedRhs l1 (go gs)) Nothing]) bodyExp where
         bodyExp = Case l2 cond
-          [ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
-          , Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
+          [ Alt l2 (PApp l2 (UnQual l2 (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+          , Alt l2 (PApp l2 (UnQual l2 (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
           ]
+          --[ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+          --, Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
+          --]
     go (g : gs) =
       error $ "Unsupported guard stmt: " ++ show (forgetL g)
     go [] =
@@ -325,8 +330,8 @@ deCaseReorderExp a1 c@(Case l exp alts) =
     bodyExp = orderedCaseToExp d
 -- reorder 1 0 c
   in
-    error $ "\n\n\n" ++ show (forgetL d) ++ "\n\n\n" ++ show (forgetL c) ++ "\n\n\n" ++ prettyPrint c
-    --c
+    --error $ "\n\n\n" ++ show (forgetL d) ++ "\n\n\n" ++ show (forgetL c) ++ "\n\n\n" ++ prettyPrint c
+    c
 -- Case (id l) (deCaseReorderExp a1 exp) (fmap (deCaseReorderAlt a1) alt)
 deCaseReorderExp a1 (Do l stmt) = Do (id l) (fmap (deCaseReorderStmt a1) stmt)
 deCaseReorderExp a1 (MDo l stmt) = MDo (id l) (fmap (deCaseReorderStmt a1) stmt)
