@@ -7,13 +7,13 @@ data Pair :: * -> * -> * where
 --  Just a | True -> putStrLn ('A' : 'n' : 'Y' : [])
 --  Nothing | True -> putStrLn ('A' : 'n' : 'y' : [])
 
-main = case Just (Just (Pair 3 5)) of
+main = case Just (Just (Pair (Pair 4 2) 5)) of
   _ | False -> putStrLn ('A' : 'n' : 'y' : [])
 
 
   Just Nothing | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'N' : 'o' : 't' : 'h' : 'i' : 'n' : 'g' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
-  Just (Just (Pair a c)) | a <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'a' : ' ' : 'c' : ')' : ')' : ' ' : '|' : ' ' : 'a' : ' ' : '<' : '=' : ' ' : '3' : [])
-  Just (Just (Pair b _)) | b <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'b' : ' ' : '_' : ')' : ')' : ' ' : '|' : ' ' : 'b' : ' ' : '<' : '=' : ' ' : '3' : [])
+  Just (Just (Pair (Pair _ a) c)) | c <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'a' : ' ' : 'c' : ')' : ')' : ' ' : '|' : ' ' : 'a' : ' ' : '<' : '=' : ' ' : '3' : [])
+  Just (Just (Pair (Pair b _) _)) | b <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'b' : ' ' : '_' : ')' : ')' : ' ' : '|' : ' ' : 'b' : ' ' : '<' : '=' : ' ' : '3' : [])
   Just (Just (Pair _ x)) -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : '_' : ' ' : 'x' : ')' : ')' : [])
 
   Just a | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'a' : ' ' : '|' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
