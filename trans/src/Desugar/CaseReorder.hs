@@ -52,8 +52,15 @@ data FallbackGroupConBranchBuilding l = GroupConBranchBuilding
 instance Functor FallbackGroupConBranchBuilding where
   fmap f (GroupConBranchBuilding l con n alts) = GroupConBranchBuilding (f l) (fmap f con) n (fmap (fmap f) alts)
 
-data AltPartial l = AltPartial
+data PatPartial l = PatPartial
+  {-# UNPACK #-} !Int -- slot begin
   [Pat l]
+  deriving Show
+instance Functor PatPartial where
+  fmap f (PatPartial n pats) = PatPartial n (fmap (fmap f) pats)
+
+data AltPartial l = AltPartial
+  [PatPartial l]
   (Rhs l)
   (Maybe (Binds l))
   deriving Show
@@ -79,24 +86,26 @@ modifyListElem as n f = go n as where
   go n (a:as) = a : go (n-1) as
 
 altToPartial :: Alt l -> AltPartial l
-altToPartial (Alt l pat rhs binds) = AltPartial [pat] rhs binds
+altToPartial (Alt l pat rhs binds) = AltPartial [PatPartial 0 [pat]] rhs binds
 
 buildReorder :: forall l. IndexDataShapes -> l -> [AltPartial l] -> OrderedCase l
-buildReorder conMap l = sortPat 0 1
+buildReorder conMap l = sortPat 1
   where
-    sortPat :: Int -> Int -> [AltPartial l] -> OrderedCase l
-    sortPat b e [] = error "sortPat: empty alts"
-    sortPat b e [AltPartial [] rhs binds] = OrderedCaseRHS rhs binds
-    sortPat b e (AltPartial [] rhs binds : _) = error "buildReorder-sortPat: non-singleton leading empty pattern"
-    sortPat b e alts = {- trace ("sortPat " ++ show (fmap forgetL alts)) $ -} OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
+    sortPat :: Int -> [AltPartial l] -> OrderedCase l
+    sortPat e [] = error "sortPat: empty alts"
+    sortPat e [AltPartial [] rhs binds] = OrderedCaseRHS rhs binds
+    sortPat e (AltPartial [] rhs binds : _) = error "buildReorder-sortPat: non-singleton leading empty pattern"
+    sortPat e (AltPartial (PatPartial _ [] : patsUpper) rhs binds : as) = sortPat e (AltPartial patsUpper rhs binds : as)
+    sortPat e alts@(AltPartial (PatPartial b _ : _) _ _ : _) = {- trace ("sortPat " ++ show (fmap forgetL alts)) $ -} OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
       grouping :: [AltPartial l] -> [FallbackGroup l]
       grouping [] = []
       grouping (g:gs) = case g of
         AltPartial [] rhs binds -> error "buildReorder-grouping: empty pattern"
-        AltPartial (PParen _ p : patsLater) rhs binds -> grouping (AltPartial (p : patsLater) rhs binds : gs)
-        AltPartial (PWildCard _ : patsLater) rhs binds -> GroupWildCard l (sortPat (b+1) e [AltPartial patsLater rhs binds]) : grouping gs
-        AltPartial (PVar _ name : patsLater) rhs binds -> GroupVar l name (sortPat (b+1) e [AltPartial patsLater rhs binds]) : grouping gs
-        AltPartial (PApp _ name pats : patsLater) rhs binds ->
+        AltPartial (PatPartial b [] : patsUpper) rhs binds -> grouping (AltPartial patsUpper rhs binds : gs)
+        AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds -> grouping (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
+        AltPartial (PatPartial b (PWildCard _ : patsLater) : patsUpper) rhs binds -> GroupWildCard l (sortPat e [AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds]) : grouping gs
+        AltPartial (PatPartial b (PVar _ name : patsLater) : patsUpper) rhs binds -> GroupVar l name (sortPat e [AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds]) : grouping gs
+        AltPartial (PatPartial b (PApp _ name pats : patsLater) : patsUpper) rhs binds ->
           let
             shape = snd $ conMap M.! {- traceShowId -} (forgetL name)
             branchesSeed = dataShapeToConBranches l shape
@@ -104,13 +113,15 @@ buildReorder conMap l = sortPat 0 1
             eatCons :: [FallbackGroupConBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupConBranch l], [AltPartial l])
             eatCons acc [] = (map buildBranch acc, [])
             eatCons acc gg@(g:gs) = {- trace ("eatCons " ++ show (length acc) ++ " " ++ show (forgetL g)) $ -} case g of
-              AltPartial (PParen _ p : patsLater) rhs binds ->
-                eatCons acc (AltPartial (p : patsLater) rhs binds : gs)
-              AltPartial (PApp _ name pats : patsLater) rhs binds ->
+              AltPartial (PatPartial b [] : patsUpper) rhs binds ->
+                eatCons acc (AltPartial patsUpper rhs binds : gs)
+              AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds ->
+                eatCons acc (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
+              AltPartial (PatPartial b (PApp _ name pats : patsLater) : patsUpper) rhs binds ->
                 let
                   i = fst $ conMap M.! {- traceShowId -} (forgetL name)
                   acc' = modifyListElem acc i $ \br@(GroupConBranchBuilding l con slotNum os) ->
-                    GroupConBranchBuilding l con slotNum (os ++ [AltPartial (pats ++ patsLater) rhs binds])
+                    GroupConBranchBuilding l con slotNum (os ++ [AltPartial (PatPartial e pats : PatPartial (b+1) patsLater : patsUpper) rhs binds])
                 in
                   eatCons acc' gs
               _ -> (map buildBranch acc, gg)
@@ -118,7 +129,7 @@ buildReorder conMap l = sortPat 0 1
             buildBranch :: FallbackGroupConBranchBuilding l -> FallbackGroupConBranch l
             buildBranch (GroupConBranchBuilding l con slotNum os) = case os of
               [] -> GroupConBranch l con e slotNum (OrderedCaseFallback l)
-              _ -> {- trace ("buildBranch " ++ show (length os)) $ -} GroupConBranch l con e slotNum (sortPat e (e+slotNum) os)
+              _ -> {- trace ("buildBranch " ++ show (length os)) $ -} GroupConBranch l con e slotNum (sortPat (e+slotNum) os)
 
             (brs, gs') = eatCons branchesSeed (g:gs)
           in
