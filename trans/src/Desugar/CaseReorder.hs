@@ -1,4 +1,4 @@
-module DeCaseReorder where
+module Desugar.CaseReorder where
 import Language.Haskell.Exts.Annotated.Syntax
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.SrcLoc

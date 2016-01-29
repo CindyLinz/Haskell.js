@@ -1,4 +1,4 @@
-module DeIf where
+module Desugar.If where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
 deIfActivation :: Activation l -> Activation l

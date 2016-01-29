@@ -14,10 +14,10 @@ import CollectData
 import ForgetL
 import Opt
 
-import DeIf
-import DeList
-import DeWhere
-import DeCaseReorder
+import Desugar.If
+import Desugar.List
+import Desugar.Where
+import Desugar.CaseReorder
 
 myParseMode filename = ParseMode
   { parseFilename = filename
