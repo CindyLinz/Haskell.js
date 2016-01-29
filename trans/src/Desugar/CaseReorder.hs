@@ -14,12 +14,12 @@ data OrderedCase l
     l
     (Name l) -- target variable name x0-, x1-..
     [FallbackGroup l]
-  | OrderedCaseRHS (Rhs l) (Maybe (Binds l))
+  | OrderedCaseRHS l (Rhs l) (Maybe (Binds l))
   | OrderedCaseFallback l
   deriving Show
 instance Functor OrderedCase where
   fmap f (OrderedCase l name groups) = OrderedCase (f l) (fmap f name) (fmap (fmap f) groups)
-  fmap f (OrderedCaseRHS rhs binds) = OrderedCaseRHS (fmap f rhs) (fmap (fmap f) binds)
+  fmap f (OrderedCaseRHS l rhs binds) = OrderedCaseRHS (f l) (fmap f rhs) (fmap (fmap f) binds)
   fmap f (OrderedCaseFallback l) = OrderedCaseFallback (f l)
 
 data FallbackGroup l
@@ -93,7 +93,7 @@ buildReorder conMap l = sortPat 1
   where
     sortPat :: Int -> [AltPartial l] -> OrderedCase l
     sortPat e [] = error "sortPat: empty alts"
-    sortPat e [AltPartial [] rhs binds] = OrderedCaseRHS rhs binds
+    sortPat e [AltPartial [] rhs binds] = OrderedCaseRHS l rhs binds
     sortPat e (AltPartial [] rhs binds : _) = error "buildReorder-sortPat: non-singleton leading empty pattern"
     sortPat e (AltPartial (PatPartial _ [] : patsUpper) rhs binds : as) = sortPat e (AltPartial patsUpper rhs binds : as)
     sortPat e alts@(AltPartial (PatPartial b _ : _) _ _ : _) = {- trace ("sortPat " ++ show (fmap forgetL alts)) $ -} OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
@@ -138,7 +138,8 @@ buildReorder conMap l = sortPat 1
 
 orderedCaseToExp :: OrderedCase l -> Exp l
 orderedCaseToExp (OrderedCaseFallback l) = Var l (UnQual l (Ident l "fallback-"))
-orderedCaseToExp (OrderedCaseRHS rhs binds) = rhsToExp rhs -- XXX 沒有處理 binds
+orderedCaseToExp (OrderedCaseRHS l rhs Nothing) = rhsToExp rhs
+orderedCaseToExp (OrderedCaseRHS l rhs (Just binds)) = Let l binds (rhsToExp rhs)
 orderedCaseToExp (OrderedCase l target groups) =
   Let l (BDecls l [PatBind l (PVar l (Ident l "fallback+")) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing]) bodyExp where
     bodyExp = go groups

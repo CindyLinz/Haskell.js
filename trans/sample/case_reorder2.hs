@@ -14,7 +14,7 @@ main = case Just (Just (Pair (Pair 4 2) 5)) of
   Just Nothing | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'N' : 'o' : 't' : 'h' : 'i' : 'n' : 'g' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
   Just (Just (Pair (Pair _ a) c)) | c <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'a' : ' ' : 'c' : ')' : ')' : ' ' : '|' : ' ' : 'a' : ' ' : '<' : '=' : ' ' : '3' : [])
   Just (Just (Pair (Pair b _) _)) | b <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'b' : ' ' : '_' : ')' : ')' : ' ' : '|' : ' ' : 'b' : ' ' : '<' : '=' : ' ' : '3' : [])
-  Just (Just (Pair _ x)) -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : '_' : ' ' : 'x' : ')' : ')' : [])
+  Just (Just (Pair _ x)) | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : '_' : ' ' : 'x' : ')' : ')' : [])
 
   Just a | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'a' : ' ' : '|' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
 
@@ -24,8 +24,9 @@ main = case Just (Just (Pair (Pair 4 2) 5)) of
 
 
   a | False -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
-    | True -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'T' : 'r' : 'u' : 'e' : [])
+    | a <= 3 -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'T' : 'r' : 'u' : 'e' : [])
     | True -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'o' : 't' : 'h' : 'e' : 'r' : 'w' : 'i' : 's' : 'e' : [])
+    where a = 3
 
 -- let
 --   fallback- = undefined
