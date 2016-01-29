@@ -176,21 +176,25 @@ orderedCaseToExp (OrderedCase l target groups) =
 
 rhsToExp :: Rhs l -> Exp l
 rhsToExp (UnGuardedRhs l exp) = exp
-rhsToExp (GuardedRhss l guards) =
+rhsToExp (GuardedRhss l guardedExps) =
   Let l (BDecls l [PatBind l (PVar l (Ident l "fallback+")) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing]) bodyExp where
-    bodyExp = go guards
-    go (GuardedRhs l1 [Qualifier l2 cond] exp : gs) =
-      Let l1 (BDecls l1 [PatBind l1 (PVar l1 (Ident l1 "fallback-")) (UnGuardedRhs l1 (go gs)) Nothing]) bodyExp where
-        bodyExp = Case l2 cond
-          [ Alt l2 (PApp l2 (UnQual l2 (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
-          , Alt l2 (PApp l2 (UnQual l2 (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
-          ]
-          --[ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
-          --, Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
-          --]
-    go (g : gs) =
-      error $ "Unsupported guard stmt: " ++ show (forgetL g)
-    go [] =
+    bodyExp = goGuardedExp guardedExps
+    goGuardedExp (GuardedRhs l guards exp : es) =
+      Let l (BDecls l [PatBind l (PVar l (Ident l "fallback-")) (UnGuardedRhs l (goGuardedExp es)) Nothing]) bodyExp where
+        bodyExp = go guards
+        go [] = exp
+        go (Qualifier _ (Var _ (UnQual _ (Ident _ "otherwise"))) : cs) = go cs
+        go (Qualifier l2 cond : cs) =
+          Case l2 cond
+            [ Alt l2 (PApp l2 (UnQual l2 (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+            , Alt l2 (PApp l2 (UnQual l2 (Ident l2 "True")) []) (UnGuardedRhs l2 (go cs)) Nothing
+            ]
+            --[ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+            --, Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
+            --]
+        go (g : gs) =
+          error $ "Unsupported guard stmt: " ++ show (forgetL g)
+    goGuardedExp [] =
       Var l (UnQual l (Ident l "fallback+"))
 
 --groupsToExp :: l -> Int -> [FallbackGroup l] -> Exp l
