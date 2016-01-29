@@ -2,6 +2,8 @@ module Main where
 
 import Language.Haskell.Exts.Annotated
 
+import System.Console.GetOpt
+
 import Data.Monoid hiding (Alt)
 import Data.Char
 -- import qualified Data.Map.Strict as M
@@ -10,6 +12,7 @@ import RuntimeSource
 
 import CollectData
 import ForgetL
+import Opt
 
 import DeIf
 import DeList
@@ -245,26 +248,34 @@ transModule (Module l moduleName pragmas moduleImports moduleDecls) =
 desugarModule0 = deIfModule . deListModule . deWhereModule
 desugarModule dataShapes = deCaseReorderModule dataShapes . deIfModule . deListModule . deWhereModule
 
-main = interact $ \inputStr ->
-  case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
-    ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
-    ParseOk mod ->
-      case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
-        ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
-        ParseOk preludeMod ->
-          let
-            preludeData = collectData preludeMod
-            mainData = collectData mod
-            --preludeData = collectDataResultAddModule (ModuleName () "Prelude") $ collectData preludeMod
-            --mainData = collectDataResultAddModule (ModuleName () "Main") $ collectData mod
-            allData = preludeData <> mainData
-          in
-            {-
-            show preludeData ++
-            "\n\n" ++
-            show mainData ++
-            "\n\n" ++
-            show allData ++
-            "\n\n" ++
-            -}
-            genInit ++ genPreludeNative ++ transModule (desugarModule0 preludeMod) ++ transModule (desugarModule allData mod) ++ genRun
+main = do
+  Options{..} <- getOpts
+  interact $ \inputStr ->
+    case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
+      ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
+      ParseOk mod ->
+        case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
+          ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
+          ParseOk preludeMod ->
+            let
+              preludeData = collectData preludeMod
+              mainData = collectData mod
+              --preludeData = collectDataResultAddModule (ModuleName () "Prelude") $ collectData preludeMod
+              --mainData = collectDataResultAddModule (ModuleName () "Main") $ collectData mod
+              allData = preludeData <> mainData
+
+              desugarredPrelude = desugarModule0 preludeMod
+              desugarredMain = desugarModule allData mod
+            in
+              {-
+              show preludeData ++
+              "\n\n" ++
+              show mainData ++
+              "\n\n" ++
+              show allData ++
+              "\n\n" ++
+              -}
+              if optDesugar then
+                prettyPrint desugarredMain ++ "\n"
+              else
+                genInit ++ genPreludeNative ++ transModule desugarredPrelude ++ transModule desugarredMain ++ genRun
