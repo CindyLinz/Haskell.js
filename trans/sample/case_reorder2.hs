@@ -23,9 +23,9 @@ main = case Just (Just (Pair (Pair 4 2) 5)) of
   Nothing -> putStrLn ('N' : 'o' : 't' : 'h' : 'i' : 'n' : 'g' : [])
 
 
-  a | False -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
-    | a <= 3 -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'T' : 'r' : 'u' : 'e' : [])
-    | True -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'o' : 't' : 'h' : 'e' : 'r' : 'w' : 'i' : 's' : 'e' : [])
+  a | otherwise, False -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
+    | a <= 2 -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'T' : 'r' : 'u' : 'e' : [])
+    | otherwise -> putStrLn ('a' : ' ' : 'a' : 'l' : 'l' : ' ' : 'o' : 't' : 'h' : 'e' : 'r' : 'w' : 'i' : 's' : 'e' : [])
     where a = 3
 
 -- let
