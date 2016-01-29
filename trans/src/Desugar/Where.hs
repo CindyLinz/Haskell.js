@@ -1,4 +1,4 @@
-module DeWhere where
+module Desugar.Where where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
 deWhereActivation :: Activation l -> Activation l

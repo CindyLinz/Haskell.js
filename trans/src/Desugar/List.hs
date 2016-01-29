@@ -1,4 +1,4 @@
-module DeList where
+module Desugar.List where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
 deListActivation :: Activation l -> Activation l
