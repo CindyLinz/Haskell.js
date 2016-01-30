@@ -75,6 +75,14 @@ data FallbackGroupLitBranch l = GroupLitBranch
   deriving Show
 instance Functor FallbackGroupLitBranch where
   fmap f (GroupLitBranch l s lit c) = GroupLitBranch (f l) (fmap f s) (fmap f lit) (fmap f c)
+data FallbackGroupLitBranchBuilding l = GroupLitBranchBuilding
+  l
+  (Sign l)
+  (Literal l)
+  [AltPartial l]
+  deriving Show
+instance Functor FallbackGroupLitBranchBuilding where
+  fmap f (GroupLitBranchBuilding l s lit alts) = GroupLitBranchBuilding (f l) (fmap f s) (fmap f lit) (fmap (fmap f) alts)
 
 dataShapeToConBranches :: l -> DataShape -> [FallbackGroupConBranchBuilding l]
 dataShapeToConBranches l shape =
@@ -105,6 +113,7 @@ buildReorder conMap l = sortPat 1
         AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds -> grouping (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
         AltPartial (PatPartial b (PWildCard _ : patsLater) : patsUpper) rhs binds -> GroupWildCard l (sortPat e [AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds]) : grouping gs
         AltPartial (PatPartial b (PVar _ name : patsLater) : patsUpper) rhs binds -> GroupVar l name (sortPat e [AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds]) : grouping gs
+
         AltPartial (PatPartial b (PApp _ name pats : patsLater) : patsUpper) rhs binds ->
           let
             shape = snd $ conMap M.! {- traceShowId -} (forgetL name)
@@ -131,9 +140,16 @@ buildReorder conMap l = sortPat 1
               [] -> GroupConBranch l con e slotNum (OrderedCaseFallback l)
               _ -> {- trace ("buildBranch " ++ show (length os)) $ -} GroupConBranch l con e slotNum (sortPat (e+slotNum) os)
 
-            (brs, gs') = eatCons branchesSeed (g:gs)
+            (brs, gs') = eatCons branchesSeed gg
           in
             GroupCon l brs : grouping gs'
+
+        AltPartial (PatPartial b (PLit _ sign (Int _ _ _) : patsLater) : patsUpper) rhs binds ->
+          let
+            eatCons :: M.Map Int (FallbackGroupLitBranchBuilding l) -> [AltPartial l] -> ([FallbackGroupLitBranch l], [AltPartial l])
+            (brs, gs') = eatCons M.empty gg
+          in
+            GroupLit l brs : grouping gs'
         other -> error $ "sortPat:grouping: " ++ show (forgetL other) ++ " not supported"
 
 orderedCaseToExp :: OrderedCase l -> Exp l

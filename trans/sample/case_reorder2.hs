@@ -14,7 +14,7 @@ main = case Just (Just (Pair (Pair 4 2) 5)) of
   Just Nothing | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'N' : 'o' : 't' : 'h' : 'i' : 'n' : 'g' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
   Just (Just (Pair (Pair _ a) c)) | c <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'a' : ' ' : 'c' : ')' : ')' : ' ' : '|' : ' ' : 'a' : ' ' : '<' : '=' : ' ' : '3' : [])
   Just (Just (Pair (Pair b _) _)) | b <= 3 -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : 'b' : ' ' : '_' : ')' : ')' : ' ' : '|' : ' ' : 'b' : ' ' : '<' : '=' : ' ' : '3' : [])
-  Just (Just (Pair _ x)) | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : '_' : ' ' : 'x' : ')' : ')' : [])
+  Just (Just (Pair _ 5)) -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : '(' : 'J' : 'u' : 's' : 't' : ' ' : '(' : 'P' : 'a' : 'i' : 'r' : ' ' : '_' : ' ' : '5' : ')' : ')' : [])
 
   Just a | False -> putStrLn ('J' : 'u' : 's' : 't' : ' ' : 'a' : ' ' : '|' : ' ' : 'F' : 'a' : 'l' : 's' : 'e' : [])
 
