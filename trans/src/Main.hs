@@ -13,6 +13,7 @@ import RuntimeSource
 import CollectData
 import ForgetL
 import Opt
+import SymbolTable
 
 import Desugar.If
 import Desugar.List
