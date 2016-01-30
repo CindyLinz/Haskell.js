@@ -107,7 +107,7 @@ buildReorder conMap l = sortPat 1
     sortPat e alts@(AltPartial (PatPartial b _ : _) _ _ : _) = {- trace ("sortPat " ++ show (fmap forgetL alts)) $ -} OrderedCase l (Ident l ("x" ++ show b ++ "-")) (grouping alts) where
       grouping :: [AltPartial l] -> [FallbackGroup l]
       grouping [] = []
-      grouping (g:gs) = case g of
+      grouping gg@(g:gs) = case g of
         AltPartial [] rhs binds -> error "buildReorder-grouping: empty pattern"
         AltPartial (PatPartial b [] : patsUpper) rhs binds -> grouping (AltPartial patsUpper rhs binds : gs)
         AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds -> grouping (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
@@ -130,7 +130,7 @@ buildReorder conMap l = sortPat 1
                 let
                   i = fst $ conMap M.! {- traceShowId -} (forgetL name)
                   acc' = modifyListElem acc i $ \br@(GroupConBranchBuilding l con slotNum os) ->
-                    GroupConBranchBuilding l con slotNum (os ++ [AltPartial (PatPartial e pats : PatPartial (b+1) patsLater : patsUpper) rhs binds])
+                    GroupConBranchBuilding l con slotNum (AltPartial (PatPartial e pats : PatPartial (b+1) patsLater : patsUpper) rhs binds : os)
                 in
                   eatCons acc' gs
               _ -> (map buildBranch acc, gg)
@@ -138,7 +138,7 @@ buildReorder conMap l = sortPat 1
             buildBranch :: FallbackGroupConBranchBuilding l -> FallbackGroupConBranch l
             buildBranch (GroupConBranchBuilding l con slotNum os) = case os of
               [] -> GroupConBranch l con e slotNum (OrderedCaseFallback l)
-              _ -> {- trace ("buildBranch " ++ show (length os)) $ -} GroupConBranch l con e slotNum (sortPat (e+slotNum) os)
+              _ -> {- trace ("buildBranch " ++ show (length os)) $ -} GroupConBranch l con e slotNum (sortPat (e+slotNum) (reverse os))
 
             (brs, gs') = eatCons branchesSeed gg
           in
@@ -146,8 +146,27 @@ buildReorder conMap l = sortPat 1
 
         AltPartial (PatPartial b (PLit _ sign (Int _ _ _) : patsLater) : patsUpper) rhs binds ->
           let
-            eatCons :: M.Map Int (FallbackGroupLitBranchBuilding l) -> [AltPartial l] -> ([FallbackGroupLitBranch l], [AltPartial l])
-            (brs, gs') = eatCons M.empty gg
+            eatCons :: [FallbackGroupLitBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupLitBranch l], [AltPartial l])
+            eatCons acc [] = (map buildBranch acc, [])
+            eatCons acc gg@(g:gs) = case g of
+              AltPartial (PatPartial b [] : patsUpper) rhs binds ->
+                eatCons acc (AltPartial patsUpper rhs binds : gs)
+              AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds ->
+                eatCons acc (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
+              AltPartial (PatPartial b (PLit _ sign lit : patsLater) : patsUpper) rhs binds ->
+                eatCons (go acc) gs
+                where
+                  newAltPartial = AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds
+                  go [] = [GroupLitBranchBuilding l sign lit [newAltPartial]]
+                  go (b@(GroupLitBranchBuilding l' sign' lit' alts) : bs)
+                    | forgetL sign' == forgetL sign, forgetL lit' == forgetL lit = GroupLitBranchBuilding l' sign' lit' (newAltPartial : alts) : bs
+                    | otherwise = b : go bs
+              _ -> (map buildBranch acc, gg)
+
+            buildBranch :: FallbackGroupLitBranchBuilding l -> FallbackGroupLitBranch l
+            buildBranch (GroupLitBranchBuilding l sign lit os) =
+              GroupLitBranch l sign lit (sortPat e (reverse os))
+            (brs, gs') = eatCons [] gg
           in
             GroupLit l brs : grouping gs'
         other -> error $ "sortPat:grouping: " ++ show (forgetL other) ++ " not supported"
@@ -172,7 +191,14 @@ orderedCaseToExp (OrderedCase l target groups) =
             where
               bsToAlt (GroupConBranch l con b slotNum cs) =
                 Alt l (PApp l con [ PVar l (Ident l ("x" ++ show i ++ "-")) | i <- [b .. b+slotNum-1]]) (UnGuardedRhs l (orderedCaseToExp cs)) Nothing
-          other -> error $ "orderedCaseToExp:go: " ++ show (forgetL other) ++ " not supported"
+          GroupLit l bs ->
+            Case l (Var l (UnQual l target)) (map bsToAlt bs ++ [defaultBs])
+            where
+              bsToAlt (GroupLitBranch l sign lit cs) =
+                Alt l (PLit l sign lit) (UnGuardedRhs l (orderedCaseToExp cs)) Nothing
+              defaultBs =
+                Alt l (PWildCard l) (UnGuardedRhs l (Var l (UnQual l (Ident l "fallback-")))) Nothing
+          --other -> error $ "orderedCaseToExp:go: " ++ show (forgetL other) ++ " not supported"
 
 --fallbackGroup :: [Alt l] -> [[Alt l]]
 --fallbackGroup alts = go alts where
