@@ -144,32 +144,42 @@ buildReorder conMap l = sortPat 1
           in
             GroupCon l brs : grouping gs'
 
-        AltPartial (PatPartial b (PLit _ sign (Int _ _ _) : patsLater) : patsUpper) rhs binds ->
-          let
-            eatCons :: [FallbackGroupLitBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupLitBranch l], [AltPartial l])
-            eatCons acc [] = (map buildBranch acc, [])
-            eatCons acc gg@(g:gs) = case g of
-              AltPartial (PatPartial b [] : patsUpper) rhs binds ->
-                eatCons acc (AltPartial patsUpper rhs binds : gs)
-              AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds ->
-                eatCons acc (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
-              AltPartial (PatPartial b (PLit _ sign lit : patsLater) : patsUpper) rhs binds ->
-                eatCons (go acc) gs
-                where
-                  newAltPartial = AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds
-                  go [] = [GroupLitBranchBuilding l sign lit [newAltPartial]]
-                  go (b@(GroupLitBranchBuilding l' sign' lit' alts) : bs)
-                    | forgetL sign' == forgetL sign, forgetL lit' == forgetL lit = GroupLitBranchBuilding l' sign' lit' (newAltPartial : alts) : bs
-                    | otherwise = b : go bs
-              _ -> (map buildBranch acc, gg)
-
-            buildBranch :: FallbackGroupLitBranchBuilding l -> FallbackGroupLitBranch l
-            buildBranch (GroupLitBranchBuilding l sign lit os) =
-              GroupLitBranch l sign lit (sortPat e (reverse os))
-            (brs, gs') = eatCons [] gg
-          in
-            GroupLit l brs : grouping gs'
+        AltPartial (PatPartial _ (PLit _ _ (Char _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (Int _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (Frac _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (PrimInt _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (PrimWord _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (PrimFloat _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (PrimDouble _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
+        AltPartial (PatPartial _ (PLit _ _ (PrimChar _ _ _) : _) : _) _ _ -> groupingAtomicLit gg
         other -> error $ "sortPat:grouping: " ++ show (forgetL other) ++ " not supported"
+
+      groupingAtomicLit :: [AltPartial l] -> [FallbackGroup l]
+      groupingAtomicLit gg =
+        let
+          eatCons :: [FallbackGroupLitBranchBuilding l] -> [AltPartial l] -> ([FallbackGroupLitBranch l], [AltPartial l])
+          eatCons acc [] = (map buildBranch acc, [])
+          eatCons acc gg@(g:gs) = case g of
+            AltPartial (PatPartial b [] : patsUpper) rhs binds ->
+              eatCons acc (AltPartial patsUpper rhs binds : gs)
+            AltPartial (PatPartial b (PParen _ p : patsLater) : patsUpper) rhs binds ->
+              eatCons acc (AltPartial (PatPartial b (p : patsLater) : patsUpper) rhs binds : gs)
+            AltPartial (PatPartial b (PLit _ sign lit : patsLater) : patsUpper) rhs binds ->
+              eatCons (go acc) gs
+              where
+                newAltPartial = AltPartial (PatPartial (b+1) patsLater : patsUpper) rhs binds
+                go [] = [GroupLitBranchBuilding l sign lit [newAltPartial]]
+                go (b@(GroupLitBranchBuilding l' sign' lit' alts) : bs)
+                  | forgetL sign' == forgetL sign, forgetL lit' == forgetL lit = GroupLitBranchBuilding l' sign' lit' (newAltPartial : alts) : bs
+                  | otherwise = b : go bs
+            _ -> (map buildBranch acc, gg)
+
+          buildBranch :: FallbackGroupLitBranchBuilding l -> FallbackGroupLitBranch l
+          buildBranch (GroupLitBranchBuilding l sign lit os) =
+            GroupLitBranch l sign lit (sortPat e (reverse os))
+          (brs, gs') = eatCons [] gg
+        in
+          GroupLit l brs : grouping gs'
 
 orderedCaseToExp :: OrderedCase l -> Exp l
 orderedCaseToExp (OrderedCaseFallback l) = Var l (UnQual l (Ident l "fallback-"))
