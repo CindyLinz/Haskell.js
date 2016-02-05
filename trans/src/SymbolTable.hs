@@ -22,8 +22,13 @@ dummySrcSpanInfo = SrcSpanInfo
   , srcInfoPoints = []
   }
 
-queryDataCon :: CollectDataResult -> [ImportDecl l1] -> QName l2 -> Maybe (Int, DataShape)
-queryDataCon CollectDataResult{dataConToShape=conMap} imports qname =
+queryDataCon
+  :: IndexDataShapes -- all exported data constructors
+  -> IndexDataShapes -- data constructors of this module
+  -> [ImportDecl l1]
+  -> QName l2
+  -> Maybe (Int, DataShape)
+queryDataCon expConMap selfConMap imports qname =
   case qname of
     Qual _ _ _ -> M.lookup (forgetL qname) conMap
     UnQual _ name -> undefined
@@ -52,9 +57,17 @@ queryDataCon CollectDataResult{dataConToShape=conMap} imports qname =
           { dataLoc = dummySrcSpanInfo
           , dataName = Special () (ListCon ())
           , dataCons =
-            [ (Special () (TupleCon () boxed size), size, M.empty)
-            , (Special () (TupleCon () boxed size), size, M.empty)
+            [ (Special () (ListCon ()), 0, M.empty)
+            , (Special () (Cons ()), 2, M.empty)
             ]
+          }
+        )
+      UnboxedSingleCon _ -> Just
+        ( 0
+        , DataShape
+          { dataLoc = dummySrcSpanInfo
+          , dataName = Special () (UnboxedSingleCon ())
+          , dataCons = [(Special () (UnboxedSingleCon ()), 1, M.empty)]
           }
         )
 
