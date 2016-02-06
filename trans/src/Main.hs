@@ -8,12 +8,14 @@ import Opt
 
 import RuntimeSource
 import CollectData
+import SymbolTable
 import BasicTrans
 
 import Desugar.If
 import Desugar.List
 import Desugar.Where
 import Desugar.CaseReorder
+import Desugar.Pattern
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -113,8 +115,31 @@ myParseMode filename = ParseMode
 --
 --    _ -> M.empty
 
-desugarModule0 = deIfModule . deListModule . deWhereModule
-desugarModule dataShapes = deCaseReorderModule dataShapes . deIfModule . deListModule . deWhereModule
+desugarModule0 = dePatternModule . deIfModule . deListModule . deWhereModule
+desugarModule dataConSymTable = deCaseReorderModule dataConSymTable . dePatternModule . deIfModule . deListModule . deWhereModule
+
+modName :: Module l -> ModuleName l
+modName (Module l Nothing _ _ _) = ModuleName l "Main"
+modName (Module _ (Just (ModuleHead _ modName _ _)) _ _ _) = modName
+
+modExport :: Module l -> Maybe (ExportSpecList l)
+modExport (Module _ Nothing _ _ _) = Nothing
+modExport (Module _ (Just (ModuleHead _ _ _ exp)) _ _ _) = exp
+
+modImport :: Module l -> [ImportDecl l]
+modImport (Module _ _ _ imps _) = imps
+
+importPrelude :: ImportDecl l
+importPrelude = ImportDecl
+  { importAnn = undefined
+  , importModule = ModuleName undefined "Prelude"
+  , importQualified = False
+  , importSrc = False
+  , importSafe = True
+  , importPkg = Nothing
+  , importAs = Nothing
+  , importSpecs = Nothing
+  }
 
 main = do
   Options{..} <- getOpts
@@ -127,13 +152,15 @@ main = do
           ParseOk preludeMod ->
             let
               preludeData = collectData preludeMod
-              mainData = collectData mod
-              --preludeData = collectDataResultAddModule (ModuleName () "Prelude") $ collectData preludeMod
-              --mainData = collectDataResultAddModule (ModuleName () "Main") $ collectData mod
-              allData = preludeData <> mainData
+              exportedPreludeData = exportData (modName preludeMod) (modExport preludeMod) preludeData
 
-              desugarredPrelude = desugarModule0 preludeMod
-              desugarredMain = desugarModule allData mod
+              mainData = collectData mod
+              exportedMainData = exportData (modName mod) (modExport mod) mainData
+
+              exportedAllData = exportedPreludeData <> exportedMainData
+
+              desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
+              desugarredMain = desugarModule (queryDataCon' (dataConToShape exportedAllData) (dataConToShape mainData) (modName mod) (importPrelude : modImport mod)) mod
             in
               {-
               show preludeData ++
