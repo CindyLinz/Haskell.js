@@ -79,7 +79,7 @@ transExpr (Case l target alts) = case alts of
   (Alt l2 (PApp l3 _ _) _ _ : _) -> -- (G)ADT
     genApp (reverse alts)
     where
-      genApp (Alt l2 (PApp l3 (UnQual l4 conName) vars) (UnGuardedRhs l5 expr) Nothing : as) =
+      genApp (Alt l2 (PApp l3 _ vars) (UnGuardedRhs l5 expr) Nothing : as) =
         "['app', " ++ genApp as ++ ", " ++ genLam vars ++ "]"
         where
           genLam (PVar l2 name : vs) = "['lam', " ++ transName name ++ ", " ++ genLam vs ++ "]"

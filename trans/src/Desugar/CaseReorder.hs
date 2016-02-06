@@ -238,12 +238,9 @@ rhsToExp (GuardedRhss l guardedExps) =
         go (Qualifier _ (Var _ (UnQual _ (Ident _ "otherwise"))) : cs) = go cs
         go (Qualifier l2 cond : cs) =
           Case l2 cond
-            [ Alt l2 (PApp l2 (UnQual l2 (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
-            , Alt l2 (PApp l2 (UnQual l2 (Ident l2 "True")) []) (UnGuardedRhs l2 (go cs)) Nothing
+            [ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
+            , Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
             ]
-            --[ Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "False")) []) (UnGuardedRhs l2 (Var l2 (UnQual l2 (Ident l2 "fallback-")))) Nothing
-            --, Alt l2 (PApp l2 (Qual l2 (ModuleName l2 "Prelude") (Ident l2 "True")) []) (UnGuardedRhs l2 exp) Nothing
-            --]
         go (g : gs) =
           error $ "Unsupported guard stmt: " ++ show (forgetL g)
     goGuardedExp [] =
