@@ -1,6 +1,8 @@
 module SymbolTable
   ( queryDataCon
   , queryDataCon'
+  , SymbolTableDataCon
+  , SymbolTableDataCon'
   ) where
 
 import Language.Haskell.Exts.Annotated
@@ -10,6 +12,9 @@ import qualified Data.Map.Strict as M
 
 import ForgetL
 import CollectData
+
+type SymbolTableDataCon l = QName l -> Maybe (Int, DataShape)
+type SymbolTableDataCon' l = QName l -> (Int, DataShape)
 
 dummySrcSpanInfo :: SrcSpanInfo
 dummySrcSpanInfo = SrcSpanInfo
@@ -23,16 +28,28 @@ dummySrcSpanInfo = SrcSpanInfo
   , srcInfoPoints = []
   }
 
+listShape :: DataShape
+listShape = DataShape
+  { dataLoc = dummySrcSpanInfo
+  , dataName = Special () (ListCon ())
+  , dataCons =
+    [ (Special () (ListCon ()), 0, M.empty)
+    , (Special () (Cons ()), 2, M.empty)
+    ]
+  }
+
 queryDataCon
   :: IndexDataShapes -- all exported data constructors
   -> IndexDataShapes -- data constructors of this module
-  -> [ImportDecl l1]
-  -> QName l2
+  -> ModuleName l1
+  -> [ImportDecl l2]
+  -> QName l3
   -> Maybe (Int, DataShape)
-queryDataCon expConMap selfConMap imports' qname' =
+queryDataCon expConMap selfConMap selfModName' imports' qname' =
   let
     imports = map forgetL imports'
     qname = forgetL qname'
+    selfModName = forgetL selfModName'
   in
     case qname of
       Qual _ modName name -> -- M.lookup (forgetL qname) conMap
@@ -58,7 +75,7 @@ queryDataCon expConMap selfConMap imports' qname' =
               maybe [] pure (M.lookup (Qual () importModule name) expConMap)
             else
               []
-          foundCurr = maybe [] pure (M.lookup (UnQual () name) selfConMap)
+          foundCurr = maybe [] pure (M.lookup (Qual () selfModName name) selfConMap)
           founds = foundCurr ++ foundExp
         in
           if length founds == 1 then
@@ -75,7 +92,10 @@ queryDataCon expConMap selfConMap imports' qname' =
             , dataCons = [(Special () (UnitCon ()), 0, M.empty)]
             }
           )
-        ListCon _ -> Nothing
+        ListCon _ -> Just
+          ( 0
+          , listShape
+          )
         FunCon _ -> Nothing
         TupleCon _ boxed size -> Just
           ( 0
@@ -87,14 +107,7 @@ queryDataCon expConMap selfConMap imports' qname' =
           )
         Cons _ -> Just
           ( 1
-          , DataShape
-            { dataLoc = dummySrcSpanInfo
-            , dataName = Special () (ListCon ())
-            , dataCons =
-              [ (Special () (ListCon ()), 0, M.empty)
-              , (Special () (Cons ()), 2, M.empty)
-              ]
-            }
+          , listShape
           )
         UnboxedSingleCon _ -> Just
           ( 0
@@ -108,9 +121,10 @@ queryDataCon expConMap selfConMap imports' qname' =
 queryDataCon'
   :: IndexDataShapes -- all exported data constructors
   -> IndexDataShapes -- data constructors of this module
-  -> [ImportDecl l1]
-  -> QName l2 -> (Int, DataShape)
-queryDataCon' all curr i q =
-  case queryDataCon all curr i q of
+  -> ModuleName l1
+  -> [ImportDecl l2]
+  -> QName l3 -> (Int, DataShape)
+queryDataCon' all curr currMod i q =
+  case queryDataCon all curr currMod i q of
     Just res -> res
     _ -> error $ "Can't find " ++ show (forgetL q) ++ " in " ++ show all ++ " and " ++ show curr
