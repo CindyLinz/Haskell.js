@@ -1,6 +1,10 @@
 data Pair :: * -> * -> * where
   Pair :: a -> b -> Pair a b
 
+--main = case "abc" of
+--  "abc" -> putStrLn "abc-"
+--  "def" -> putStrLn "def"
+
 main = case Just (Just (Pair 3 5)) of
   _ | False -> putStrLn "Any"
 

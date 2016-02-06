@@ -70,10 +70,16 @@ transExpr (Let l (BDecls l2 binds) expr) =
 transExpr (Case l target alts) = case alts of
   (Alt l2 (PVar l3 name) (UnGuardedRhs l4 expr) Nothing : _) -> -- case target of name -> expr
     "['app',['lam'," ++ transName name ++ "," ++ transExpr expr ++ "]," ++ transExpr target ++ "]"
+
   (Alt l2 (PLit l3 _ (Int l4 _ _)) _ _ : _) -> -- 整數 literal: 1, 2, 3, ..
     "['app', " ++ transExpr target ++ ", " ++ genPrimIntMatch alts ++ "]"
   (Alt l2 (PLit l3 _ (PrimInt l4 _ _)) _ _ : _) -> -- unbox 整數 literal: 1#, 2#, 3#, ...
     "['app', " ++ genPrimIntMatch alts ++ ", " ++ transExpr target ++ "]"
+  (Alt l2 (PLit l3 _ (Char l4 _ _)) _ _ : _) -> -- 字元 literal: 'a', 'b', 'c', ..
+    "['app', " ++ transExpr target ++ ", " ++ genPrimCharMatch alts ++ "]"
+  (Alt l2 (PLit l3 _ (PrimChar l4 _ _)) _ _ : _) -> -- unbox 字元 literal: 'a'#, 'b'#, 'c'#, ..
+    "['app', " ++ genPrimCharMatch alts ++ ", " ++ transExpr target ++ "]"
+
   [Alt l2 (PList l3 []) (UnGuardedRhs l4 exprNil) _, Alt l5 (PApp l6 _ [PVar l7 aName, PVar l8 asName]) (UnGuardedRhs l9 exprCons) _ ] -> -- (G)ADT (for list)
     "['app', ['app', " ++ transExpr target ++ ", " ++ transExpr exprNil ++ "], ['lam', " ++ transName aName ++ ", ['lam', " ++ transName asName ++ ", " ++ transExpr exprCons ++ "]]]"
   (Alt l2 (PApp l3 _ _) _ _ : _) -> -- (G)ADT
@@ -108,6 +114,27 @@ genPrimIntMatch alts =
     genBranch (Alt l (PWildCard l2) rhs Nothing) =
       "default: " ++ genRHS rhs
     genBranch alt = error $ show alt ++ " not implemented PrimInt branch"
+    genRHS (UnGuardedRhs l expr) = "return weak_normal_form({env: env, expr: " ++ transExpr expr ++ "});\n"
+
+genPrimCharMatch :: Show l => [Alt l] -> String
+genPrimCharMatch alts =
+  "['int', 'match-char#', 1, function(target){\n\
+    \  var env = this;\n\
+    \  target = weak_normal_form(target);\n\
+    \  switch(target.expr[1].charCodeAt(0)){\n" ++
+    mconcat (flip map alts $ genBranch) ++
+    "  }\n\
+  \}]"
+  where
+    genBranch (Alt l (PLit l2 _ (PrimChar l3 ch _)) rhs Nothing) =
+      "case " ++ show (ord ch) ++ ": " ++ genRHS rhs
+    genBranch (Alt l (PLit l2 _ (Char l3 ch _)) rhs Nothing) =
+      "case " ++ show (ord ch) ++ ": " ++ genRHS rhs
+    genBranch (Alt l (PVar l2 name) rhs Nothing) =
+      "default: env = clone_env(env); env[" ++ transName name ++ "] = target; " ++ genRHS rhs
+    genBranch (Alt l (PWildCard l2) rhs Nothing) =
+      "default: " ++ genRHS rhs
+    genBranch alt = error $ show alt ++ " not implemented PrimChar branch"
     genRHS (UnGuardedRhs l expr) = "return weak_normal_form({env: env, expr: " ++ transExpr expr ++ "});\n"
 
 transDecl :: Show l => Decl l -> String
