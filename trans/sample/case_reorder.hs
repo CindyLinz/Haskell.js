@@ -5,7 +5,7 @@ data Pair :: * -> * -> * where
 --  "abc" -> putStrLn "abc-"
 --  "def" -> putStrLn "def"
 
-main = case Just (Just (Pair 3 5)) of
+main = flip id (Just (Just (Pair 3 5))) $ \case
   _ | False -> putStrLn "Any"
 
 

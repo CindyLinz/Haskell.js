@@ -546,6 +546,12 @@ srcPrelude = "{-# LANGUAGE GADTs, KindSignatures, MagicHash #-}\n\
 \\n\
 \-- [a] 語法特殊, 不用 Haskell 定義\n\
 \\n\
+\id = \\x -> x\n\
+\\n\
+\flip = \\f a b -> f b a\n\
+\\n\
+\($) = id\n\
+\\n\
 \(++) = \\as bs -> case as of\n\
 \  [] -> bs\n\
 \  (:) a as -> (:) a ((++) as bs)\n\
