@@ -17,6 +17,7 @@ import Desugar.CaseReorder
 import Desugar.String
 import Desugar.List
 import Desugar.Tuple
+import Desugar.LambdaCase
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -116,7 +117,7 @@ myParseMode filename = ParseMode
 --
 --    _ -> M.empty
 
-desugarModule dataConSymTable = deCaseReorderModule dataConSymTable . deIfModule . deTupleModule . deListModule . deStringModule . deWhereModule
+desugarModule dataConSymTable = deCaseReorderModule dataConSymTable . deIfModule . deTupleModule . deListModule . deStringModule . deLambdaCaseModule . deWhereModule
 
 modName :: Module l -> ModuleName l
 modName (Module l Nothing _ _ _) = ModuleName l "Main"

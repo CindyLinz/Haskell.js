@@ -24,6 +24,12 @@ data Maybe :: * -> * where
 
 -- [a] 語法特殊, 不用 Haskell 定義
 
+id = \x -> x
+
+flip = \f a b -> f b a
+
+($) = id
+
 (++) = \as bs -> case as of
   [] -> bs
   (:) a as -> (:) a ((++) as bs)
