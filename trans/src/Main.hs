@@ -12,11 +12,11 @@ import SymbolTable
 import BasicTrans
 
 import Desugar.If
-import Desugar.List
 import Desugar.Where
 import Desugar.CaseReorder
-import Desugar.Pattern
 import Desugar.String
+import Desugar.List
+import Desugar.Tuple
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -116,7 +116,7 @@ myParseMode filename = ParseMode
 --
 --    _ -> M.empty
 
-desugarModule dataConSymTable = deCaseReorderModule dataConSymTable . dePatternModule . deIfModule . deListModule . deStringModule . deWhereModule
+desugarModule dataConSymTable = deCaseReorderModule dataConSymTable . deIfModule . deTupleModule . deListModule . deStringModule . deWhereModule
 
 modName :: Module l -> ModuleName l
 modName (Module l Nothing _ _ _) = ModuleName l "Main"
