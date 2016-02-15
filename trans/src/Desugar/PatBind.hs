@@ -1,6 +1,38 @@
 module Desugar.PatBind where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
+
+patVars :: Pat l -> [Name l]
+patVars = go [] where
+  infixl 0 `go`
+  go acc (PVar _ name) = name : acc
+  go acc (PLit _ _ _) = acc
+  go acc (PNPlusK _ name _) = name : acc
+  go acc (PInfixApp _ p1 _ p2) = acc `go` p1 `go` p2
+  go acc (PApp _ _ ps) = foldl go acc ps
+  go acc (PTuple _ _ ps) = foldl go acc ps
+  go acc (PList _ ps) = foldl go acc ps
+  go acc (PParen _ p) = acc `go` p
+  go acc (PRec _ _ pfs) = foldl go2 acc pfs where
+    go2 acc (PFieldPat _ _ p) = acc `go` p
+    go2 acc (PFieldPun _ (UnQual _ name)) = name : acc
+    go2 acc (PFieldPun _ (Qual _ _ name)) = name : acc
+    go2 acc (PFieldPun _ (Special _ _)) = acc
+    go2 acc (PFieldWildcard _) = acc
+  go acc (PAsPat _ name p) = (name : acc) `go` p
+  go acc (PWildCard _) = acc
+  go acc (PIrrPat _ p) = acc `go` p
+  go acc (PatTypeSig _ p _) = acc `go` p
+  go acc (PViewPat _ _ p) = acc `go` p
+  go acc (PRPat _ _) = error "PRPat (regular list pattern) is not supported"
+  go acc (PXTag _ _ _ _ _) = error "PXTag (XML element pattern) is not supported"
+  go acc (PXETag _ _ _ _) = error "PXETag (XML singleton element pattern) is not supported"
+  go acc (PXPcdata _ _) = error "PXPcdata (XML PCDATA pattern) is not supported"
+  go acc (PXPatTag _ _) = error "PXPatTag (XML embedded pattern) is not supported"
+  go acc (PXRPats _ _) = error "PXRPats (XML regular list pattern) is not supported"
+  go acc (PQuasiQuote _ _ _) = error "PQuasiQuote (quasi quote pattern) is not supported"
+  go acc (PBangPat _ p) = acc `go` p
+
 dePatBindActivation :: Activation l -> Activation l
 dePatBindActivation (ActiveFrom l int) = ActiveFrom (id l) (id int)
 dePatBindActivation (ActiveUntil l int) = ActiveUntil (id l) (id int)
@@ -89,7 +121,20 @@ dePatBindDecl (SpliceDecl l exp) = SpliceDecl (id l) (dePatBindExp exp)
 dePatBindDecl (TypeSig l name type0) = TypeSig (id l) (fmap (dePatBindName) name) (dePatBindType type0)
 dePatBindDecl (PatSynSig l name tyVarBind context1 context2 type0) = PatSynSig (id l) (dePatBindName name) (fmap (fmap (dePatBindTyVarBind)) tyVarBind) (fmap (dePatBindContext) context1) (fmap (dePatBindContext) context2) (dePatBindType type0)
 dePatBindDecl (FunBind l match) = FunBind (id l) (fmap (dePatBindMatch) match)
-dePatBindDecl (PatBind l pat rhs binds) = PatBind (id l) (dePatBindPat pat) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
+dePatBindDecl (PatBind l pat rhs binds) =
+  case pat of
+    PParen _ p -> dePatBindDecl (PatBind l p rhs binds)
+    PApp _ _ _ -> process
+    _ -> pass
+  where
+    process =
+      let
+        vars = patVars pat
+      in
+        if null vars then
+          pass
+        else
+    pass = PatBind (id l) (dePatBindPat pat) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
 dePatBindDecl (PatSyn l pat1 pat2 patternSynDirection) = PatSyn (id l) (dePatBindPat pat1) (dePatBindPat pat2) (dePatBindPatternSynDirection patternSynDirection)
 dePatBindDecl (ForImp l callConv safety string name type0) = ForImp (id l) (dePatBindCallConv callConv) (fmap (dePatBindSafety) safety) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
 dePatBindDecl (ForExp l callConv string name type0) = ForExp (id l) (dePatBindCallConv callConv) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
