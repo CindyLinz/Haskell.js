@@ -216,20 +216,20 @@ dePatBindDecl (PatBind l pat rhs binds) =
 
     matchExp = case rhs of
       GuardedRhss l _ ->
-        Case l (Con l (Special l (UnitCon l))) [Alt l (PWildCard l) rhs binds]
+        Case l (Con l (Special l (UnitCon l))) [Alt l (PWildCard l) (dePatBindRhs rhs) (fmap dePatBindBinds binds)]
       UnGuardedRhs l exp ->
         case binds of
           Nothing ->
-            exp
+            dePatBindExp exp
           Just bindContents ->
-            Let l bindContents exp
+            Let l (dePatBindBinds bindContents) (dePatBindExp exp)
 
     resultExp = case vars of
       [] -> error "impossible"
       [onlyName] -> Var l (UnQual l onlyName)
       nameList -> Tuple l Boxed (map (Var l . UnQual l) nameList)
 
-    valueRhs = UnGuardedRhs l (Case l matchExp [Alt l pat (UnGuardedRhs l resultExp) Nothing])
+    valueRhs = UnGuardedRhs l (Case l matchExp [Alt l (dePatBindPat pat) (UnGuardedRhs l resultExp) Nothing])
 
     listName = case vars of
       [] -> undefined
