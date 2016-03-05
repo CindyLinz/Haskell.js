@@ -35,6 +35,24 @@ function lc_str_to_js_str(lc_str){
   return out;
 }
 
+function tuple_con_gen(n){
+  var gen_app = function(i){
+    if(i>0){
+      return ['app', gen_app(i-1), ['var', 'x'+i]];
+    }else{
+      return ['var', 'f'];
+    }
+  };
+  var gen_lam = function(i){
+    if(i<=n){
+      return ['lam', 'x'+i, gen_lam(i+1)];
+    }else{
+      return ['lam', 'f', gen_app(n)];
+    }
+  };
+  return gen_lam(1);
+}
+
 env['Y#'] = {
   expr: ['lam', 'f', ['app', ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]], ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]]]],
   env: env
