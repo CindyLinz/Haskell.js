@@ -1,6 +1,9 @@
 module Desugar.PatBind where
 import Language.Haskell.Exts.Annotated.Syntax
 import Control.Arrow ((***))
+import Control.Monad
+
+joinMap = (=<<)
 
 patVars :: Pat l -> [Name l]
 patVars = go [] where
@@ -58,7 +61,7 @@ dePatBindBangType :: BangType l -> BangType l
 dePatBindBangType (BangedTy l) = BangedTy (id l)
 dePatBindBangType (UnpackedTy l) = UnpackedTy (id l)
 dePatBindBinds :: Binds l -> Binds l
-dePatBindBinds (BDecls l decl) = BDecls (id l) (fmap (dePatBindDecl) decl)
+dePatBindBinds (BDecls l decl) = BDecls (id l) (joinMap (dePatBindDecl) decl)
 dePatBindBinds (IPBinds l iPBind) = IPBinds (id l) (fmap (dePatBindIPBind) iPBind)
 dePatBindBooleanFormula :: BooleanFormula l -> BooleanFormula l
 dePatBindBooleanFormula (VarFormula l name) = VarFormula (id l) (dePatBindName name)
@@ -72,7 +75,7 @@ dePatBindBracket :: Bracket l -> Bracket l
 dePatBindBracket (ExpBracket l exp) = ExpBracket (id l) (dePatBindExp exp)
 dePatBindBracket (PatBracket l pat) = PatBracket (id l) (dePatBindPat pat)
 dePatBindBracket (TypeBracket l type0) = TypeBracket (id l) (dePatBindType type0)
-dePatBindBracket (DeclBracket l decl) = DeclBracket (id l) (fmap (dePatBindDecl) decl)
+dePatBindBracket (DeclBracket l decl) = DeclBracket (id l) (joinMap (dePatBindDecl) decl)
 dePatBindCName :: CName l -> CName l
 dePatBindCName (VarName l name) = VarName (id l) (dePatBindName name)
 dePatBindCName (ConName l name) = ConName (id l) (dePatBindName name)
@@ -86,7 +89,7 @@ dePatBindCallConv (Js l) = Js (id l)
 dePatBindCallConv (JavaScript l) = JavaScript (id l)
 dePatBindCallConv (CApi l) = CApi (id l)
 dePatBindClassDecl :: ClassDecl l -> ClassDecl l
-dePatBindClassDecl (ClsDecl l decl) = ClsDecl (id l) (dePatBindDecl decl)
+dePatBindClassDecl (ClsDecl l decl) = ClsDecl (id l) (head (dePatBindDecl decl))
 dePatBindClassDecl (ClsDataFam l context declHead kind) = ClsDataFam (id l) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
 dePatBindClassDecl (ClsTyFam l declHead kind) = ClsTyFam (id l) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
 dePatBindClassDecl (ClsTyDef l type1 type2) = ClsTyDef (id l) (dePatBindType type1) (dePatBindType type2)
@@ -102,53 +105,180 @@ dePatBindContext (CxEmpty l) = CxEmpty (id l)
 dePatBindDataOrNew :: DataOrNew l -> DataOrNew l
 dePatBindDataOrNew (DataType l) = DataType (id l)
 dePatBindDataOrNew (NewType l) = NewType (id l)
-dePatBindDecl :: Decl l -> Decl l
-dePatBindDecl (TypeDecl l declHead type0) = TypeDecl (id l) (dePatBindDeclHead declHead) (dePatBindType type0)
-dePatBindDecl (TypeFamDecl l declHead kind) = TypeFamDecl (id l) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
-dePatBindDecl (ClosedTypeFamDecl l declHead kind typeEqn) = ClosedTypeFamDecl (id l) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind) (fmap (dePatBindTypeEqn) typeEqn)
-dePatBindDecl (DataDecl l dataOrNew context declHead qualConDecl deriving0) = DataDecl (id l) (dePatBindDataOrNew dataOrNew) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindQualConDecl) qualConDecl) (fmap (dePatBindDeriving) deriving0)
-dePatBindDecl (GDataDecl l dataOrNew context declHead kind gadtDecl deriving0) = GDataDecl (id l) (dePatBindDataOrNew dataOrNew) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind) (fmap (dePatBindGadtDecl) gadtDecl) (fmap (dePatBindDeriving) deriving0)
-dePatBindDecl (DataFamDecl l context declHead kind) = DataFamDecl (id l) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
-dePatBindDecl (TypeInsDecl l type1 type2) = TypeInsDecl (id l) (dePatBindType type1) (dePatBindType type2)
-dePatBindDecl (DataInsDecl l dataOrNew type0 qualConDecl deriving0) = DataInsDecl (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindQualConDecl) qualConDecl) (fmap (dePatBindDeriving) deriving0)
-dePatBindDecl (GDataInsDecl l dataOrNew type0 kind gadtDecl deriving0) = GDataInsDecl (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindKind) kind) (fmap (dePatBindGadtDecl) gadtDecl) (fmap (dePatBindDeriving) deriving0)
-dePatBindDecl (ClassDecl l context declHead funDep classDecl) = ClassDecl (id l) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindFunDep) funDep) (fmap (fmap (dePatBindClassDecl)) classDecl)
-dePatBindDecl (InstDecl l overlap instRule instDecl) = InstDecl (id l) (fmap (dePatBindOverlap) overlap) (dePatBindInstRule instRule) (fmap (fmap (dePatBindInstDecl)) instDecl)
-dePatBindDecl (DerivDecl l overlap instRule) = DerivDecl (id l) (fmap (dePatBindOverlap) overlap) (dePatBindInstRule instRule)
-dePatBindDecl (InfixDecl l assoc int op) = InfixDecl (id l) (dePatBindAssoc assoc) (fmap (id) int) (fmap (dePatBindOp) op)
-dePatBindDecl (DefaultDecl l type0) = DefaultDecl (id l) (fmap (dePatBindType) type0)
-dePatBindDecl (SpliceDecl l exp) = SpliceDecl (id l) (dePatBindExp exp)
-dePatBindDecl (TypeSig l name type0) = TypeSig (id l) (fmap (dePatBindName) name) (dePatBindType type0)
-dePatBindDecl (PatSynSig l name tyVarBind context1 context2 type0) = PatSynSig (id l) (dePatBindName name) (fmap (fmap (dePatBindTyVarBind)) tyVarBind) (fmap (dePatBindContext) context1) (fmap (dePatBindContext) context2) (dePatBindType type0)
-dePatBindDecl (FunBind l match) = FunBind (id l) (fmap (dePatBindMatch) match)
+dePatBindDecl :: Decl l -> [Decl l]
+dePatBindDecl (TypeDecl l declHead type0) = pure $ TypeDecl (id l) (dePatBindDeclHead declHead) (dePatBindType type0)
+dePatBindDecl (TypeFamDecl l declHead kind) = pure $ TypeFamDecl (id l) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
+dePatBindDecl (ClosedTypeFamDecl l declHead kind typeEqn) = pure $ ClosedTypeFamDecl (id l) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind) (fmap (dePatBindTypeEqn) typeEqn)
+dePatBindDecl (DataDecl l dataOrNew context declHead qualConDecl deriving0) = pure $ DataDecl (id l) (dePatBindDataOrNew dataOrNew) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindQualConDecl) qualConDecl) (fmap (dePatBindDeriving) deriving0)
+dePatBindDecl (GDataDecl l dataOrNew context declHead kind gadtDecl deriving0) = pure $ GDataDecl (id l) (dePatBindDataOrNew dataOrNew) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind) (fmap (dePatBindGadtDecl) gadtDecl) (fmap (dePatBindDeriving) deriving0)
+dePatBindDecl (DataFamDecl l context declHead kind) = pure $ DataFamDecl (id l) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindKind) kind)
+dePatBindDecl (TypeInsDecl l type1 type2) = pure $ TypeInsDecl (id l) (dePatBindType type1) (dePatBindType type2)
+dePatBindDecl (DataInsDecl l dataOrNew type0 qualConDecl deriving0) = pure $ DataInsDecl (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindQualConDecl) qualConDecl) (fmap (dePatBindDeriving) deriving0)
+dePatBindDecl (GDataInsDecl l dataOrNew type0 kind gadtDecl deriving0) = pure $ GDataInsDecl (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindKind) kind) (fmap (dePatBindGadtDecl) gadtDecl) (fmap (dePatBindDeriving) deriving0)
+dePatBindDecl (ClassDecl l context declHead funDep classDecl) = pure $ ClassDecl (id l) (fmap (dePatBindContext) context) (dePatBindDeclHead declHead) (fmap (dePatBindFunDep) funDep) (fmap (fmap (dePatBindClassDecl)) classDecl)
+dePatBindDecl (InstDecl l overlap instRule instDecl) = pure $ InstDecl (id l) (fmap (dePatBindOverlap) overlap) (dePatBindInstRule instRule) (fmap (fmap (dePatBindInstDecl)) instDecl)
+dePatBindDecl (DerivDecl l overlap instRule) = pure $ DerivDecl (id l) (fmap (dePatBindOverlap) overlap) (dePatBindInstRule instRule)
+dePatBindDecl (InfixDecl l assoc int op) = pure $ InfixDecl (id l) (dePatBindAssoc assoc) (fmap (id) int) (fmap (dePatBindOp) op)
+dePatBindDecl (DefaultDecl l type0) = pure $ DefaultDecl (id l) (fmap (dePatBindType) type0)
+dePatBindDecl (SpliceDecl l exp) = pure $ SpliceDecl (id l) (dePatBindExp exp)
+dePatBindDecl (TypeSig l name type0) = pure $ TypeSig (id l) (fmap (dePatBindName) name) (dePatBindType type0)
+dePatBindDecl (PatSynSig l name tyVarBind context1 context2 type0) = pure $ PatSynSig (id l) (dePatBindName name) (fmap (fmap (dePatBindTyVarBind)) tyVarBind) (fmap (dePatBindContext) context1) (fmap (dePatBindContext) context2) (dePatBindType type0)
+dePatBindDecl (FunBind l match) = pure $ FunBind (id l) (fmap (dePatBindMatch) match)
+{-
+Just a | cond1, cond11 = expr1
+       | cond2 = expr2
+       where
+         bind1 = bexpr1
+         bind2 = bexpr2
+
+a = case () of
+  _ | cond1, cond11 -> case expr1 of
+      Just a -> a
+    | cond2 -> case expr2 of
+      Just a -> a
+    where
+      bind1 = bexpr1
+      bind2 = bexpr2
+
+a =
+  case
+    case () of
+      _ | cond1, cond11 -> expr1
+        | cond2 -> expr2
+        where
+          bind1 = bexpr1
+          bind2 = bexpr2
+  of
+    Just a -> a
+
+---
+
+Just a = expr where
+  bind1 = bexpr1
+  bind2 = bexpr2
+
+a =
+  case
+    let
+      bind1 = bexpr1
+      bind2 = bexpr2
+    in
+      expr
+  of
+    Just a -> a
+
+---
+
+Pair a b = expr
+  where
+    bind1 = bexpr1
+
+a-b- =
+  case
+    let
+      bind1 = bexpr1
+    in
+      expr
+  of
+    Pair a b -> (a, b)
+a = case a-b- of (a, b) -> a
+b = case a-b- of (a, b) -> b
+
+---
+
+Pair a b
+  | cond1 = expr1
+  | cond2 = expr2
+  where
+    bind1 = bexpr1
+
+a-b- =
+  case
+    case () of
+      _ | cond1 -> expr1
+        | cond2 -> expr2
+        where
+          bind1 = bexpr1
+  of
+    Pair a b -> (a, b)
+a = case a-b- of (a, b) -> a
+b = case a-b- of (a, b) -> b
+
+ -}
 dePatBindDecl (PatBind l pat rhs binds) =
   case pat of
     PParen _ p -> dePatBindDecl (PatBind l p rhs binds)
     PApp _ _ _ -> process
     _ -> pass
   where
+    vars = patVars pat
+    varN = length vars
+
+    matchExp = case rhs of
+      GuardedRhss l _ ->
+        Case l (Con l (Special l (UnitCon l))) [Alt l (PWildCard l) rhs binds]
+      UnGuardedRhs l exp ->
+        case binds of
+          Nothing ->
+            exp
+          Just bindContents ->
+            Let l bindContents exp
+
+    resultExp = case vars of
+      [] -> error "impossible"
+      [onlyName] -> Var l (UnQual l onlyName)
+      nameList -> Tuple l Boxed (map (Var l . UnQual l) nameList)
+
+    valueRhs = UnGuardedRhs l (Case l matchExp [Alt l pat (UnGuardedRhs l resultExp) Nothing])
+
+    listName = case vars of
+      [] -> undefined
+      [onlyName] -> onlyName
+      nameList -> Ident l $ join $ map ((++ "-") . extractStr) nameList
+      where
+        extractStr (Ident _ str) = str
+        extractStr (Symbol _ str) = str
+
+    selectRhs k = UnGuardedRhs l
+      ( Case l (Var l (UnQual l listName))
+        [Alt l (PTuple l Boxed (go 0)) (UnGuardedRhs l (Var l (UnQual l (Ident l "x")))) Nothing]
+      )
+      where
+        go i | i==varN = []
+             | i==k = PVar l (Ident l "x") : go (i+1)
+             | otherwise = PWildCard l : go (i+1)
+
     process =
       let
         vars = patVars pat
-      in
-        if null vars then
-          pass
-        else
-    pass = PatBind (id l) (dePatBindPat pat) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
-dePatBindDecl (PatSyn l pat1 pat2 patternSynDirection) = PatSyn (id l) (dePatBindPat pat1) (dePatBindPat pat2) (dePatBindPatternSynDirection patternSynDirection)
-dePatBindDecl (ForImp l callConv safety string name type0) = ForImp (id l) (dePatBindCallConv callConv) (fmap (dePatBindSafety) safety) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
-dePatBindDecl (ForExp l callConv string name type0) = ForExp (id l) (dePatBindCallConv callConv) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
-dePatBindDecl (RulePragmaDecl l rule) = RulePragmaDecl (id l) (fmap (dePatBindRule) rule)
-dePatBindDecl (DeprPragmaDecl l name) = DeprPragmaDecl (id l) (fmap (((fmap (dePatBindName)) *** (id))) name)
-dePatBindDecl (WarnPragmaDecl l name) = WarnPragmaDecl (id l) (fmap (((fmap (dePatBindName)) *** (id))) name)
-dePatBindDecl (InlineSig l bool activation qName) = InlineSig (id l) (id bool) (fmap (dePatBindActivation) activation) (dePatBindQName qName)
-dePatBindDecl (InlineConlikeSig l activation qName) = InlineConlikeSig (id l) (fmap (dePatBindActivation) activation) (dePatBindQName qName)
-dePatBindDecl (SpecSig l activation qName type0) = SpecSig (id l) (fmap (dePatBindActivation) activation) (dePatBindQName qName) (fmap (dePatBindType) type0)
-dePatBindDecl (SpecInlineSig l bool activation qName type0) = SpecInlineSig (id l) (id bool) (fmap (dePatBindActivation) activation) (dePatBindQName qName) (fmap (dePatBindType) type0)
-dePatBindDecl (InstSig l instRule) = InstSig (id l) (dePatBindInstRule instRule)
-dePatBindDecl (AnnPragma l annotation) = AnnPragma (id l) (dePatBindAnnotation annotation)
-dePatBindDecl (MinimalPragma l booleanFormula) = MinimalPragma (id l) (fmap (dePatBindBooleanFormula) booleanFormula)
-dePatBindDecl (RoleAnnotDecl l qName role) = RoleAnnotDecl (id l) (dePatBindQName qName) (fmap (dePatBindRole) role)
+      in case vars of
+        [] -> pass
+        [onlyName] ->
+          -- onlyName = case expr of pattern -> onlyName
+          pure $ PatBind l (PVar l onlyName) valueRhs Nothing
+        _ ->
+          -- a-b-c- = ...
+          -- a = ...
+          -- b = ...
+          -- c = ...
+          PatBind l (PVar l listName) valueRhs Nothing : zipWith extractVar vars [0..]
+          where
+            extractVar var k = PatBind l (PVar l var) (selectRhs k) Nothing
+    pass = pure $ PatBind (id l) (dePatBindPat pat) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
+dePatBindDecl (PatSyn l pat1 pat2 patternSynDirection) = pure $ PatSyn (id l) (dePatBindPat pat1) (dePatBindPat pat2) (dePatBindPatternSynDirection patternSynDirection)
+dePatBindDecl (ForImp l callConv safety string name type0) = pure $ ForImp (id l) (dePatBindCallConv callConv) (fmap (dePatBindSafety) safety) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
+dePatBindDecl (ForExp l callConv string name type0) = pure $ ForExp (id l) (dePatBindCallConv callConv) (fmap (id) string) (dePatBindName name) (dePatBindType type0)
+dePatBindDecl (RulePragmaDecl l rule) = pure $ RulePragmaDecl (id l) (fmap (dePatBindRule) rule)
+dePatBindDecl (DeprPragmaDecl l name) = pure $ DeprPragmaDecl (id l) (fmap (((fmap (dePatBindName)) *** (id))) name)
+dePatBindDecl (WarnPragmaDecl l name) = pure $ WarnPragmaDecl (id l) (fmap (((fmap (dePatBindName)) *** (id))) name)
+dePatBindDecl (InlineSig l bool activation qName) = pure $ InlineSig (id l) (id bool) (fmap (dePatBindActivation) activation) (dePatBindQName qName)
+dePatBindDecl (InlineConlikeSig l activation qName) = pure $ InlineConlikeSig (id l) (fmap (dePatBindActivation) activation) (dePatBindQName qName)
+dePatBindDecl (SpecSig l activation qName type0) = pure $ SpecSig (id l) (fmap (dePatBindActivation) activation) (dePatBindQName qName) (fmap (dePatBindType) type0)
+dePatBindDecl (SpecInlineSig l bool activation qName type0) = pure $ SpecInlineSig (id l) (id bool) (fmap (dePatBindActivation) activation) (dePatBindQName qName) (fmap (dePatBindType) type0)
+dePatBindDecl (InstSig l instRule) = pure $ InstSig (id l) (dePatBindInstRule instRule)
+dePatBindDecl (AnnPragma l annotation) = pure $ AnnPragma (id l) (dePatBindAnnotation annotation)
+dePatBindDecl (MinimalPragma l booleanFormula) = pure $ MinimalPragma (id l) (fmap (dePatBindBooleanFormula) booleanFormula)
+dePatBindDecl (RoleAnnotDecl l qName role) = pure $ RoleAnnotDecl (id l) (dePatBindQName qName) (fmap (dePatBindRole) role)
 dePatBindDeclHead :: DeclHead l -> DeclHead l
 dePatBindDeclHead (DHead l name) = DHead (id l) (dePatBindName name)
 dePatBindDeclHead (DHInfix l tyVarBind name) = DHInfix (id l) (dePatBindTyVarBind tyVarBind) (dePatBindName name)
@@ -245,7 +375,7 @@ dePatBindImportSpec (IThingWith l name cName) = IThingWith (id l) (dePatBindName
 dePatBindImportSpecList :: ImportSpecList l -> ImportSpecList l
 dePatBindImportSpecList (ImportSpecList l bool importSpec) = ImportSpecList (id l) (id bool) (fmap (dePatBindImportSpec) importSpec)
 dePatBindInstDecl :: InstDecl l -> InstDecl l
-dePatBindInstDecl (InsDecl l decl) = InsDecl (id l) (dePatBindDecl decl)
+dePatBindInstDecl (InsDecl l decl) = InsDecl (id l) (head (dePatBindDecl decl))
 dePatBindInstDecl (InsType l type1 type2) = InsType (id l) (dePatBindType type1) (dePatBindType type2)
 dePatBindInstDecl (InsData l dataOrNew type0 qualConDecl deriving0) = InsData (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindQualConDecl) qualConDecl) (fmap (dePatBindDeriving) deriving0)
 dePatBindInstDecl (InsGData l dataOrNew type0 kind gadtDecl deriving0) = InsGData (id l) (dePatBindDataOrNew dataOrNew) (dePatBindType type0) (fmap (dePatBindKind) kind) (fmap (dePatBindGadtDecl) gadtDecl) (fmap (dePatBindDeriving) deriving0)
@@ -280,9 +410,9 @@ dePatBindMatch :: Match l -> Match l
 dePatBindMatch (Match l name pat rhs binds) = Match (id l) (dePatBindName name) (fmap (dePatBindPat) pat) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
 dePatBindMatch (InfixMatch l pat1 name pat2 rhs binds) = InfixMatch (id l) (dePatBindPat pat1) (dePatBindName name) (fmap (dePatBindPat) pat2) (dePatBindRhs rhs) (fmap (dePatBindBinds) binds)
 dePatBindModule :: Module l -> Module l
-dePatBindModule (Module l moduleHead modulePragma importDecl decl) = Module (id l) (fmap (dePatBindModuleHead) moduleHead) (fmap (dePatBindModulePragma) modulePragma) (fmap (dePatBindImportDecl) importDecl) (fmap (dePatBindDecl) decl)
+dePatBindModule (Module l moduleHead modulePragma importDecl decl) = Module (id l) (fmap (dePatBindModuleHead) moduleHead) (fmap (dePatBindModulePragma) modulePragma) (fmap (dePatBindImportDecl) importDecl) (joinMap (dePatBindDecl) decl)
 dePatBindModule (XmlPage l moduleName modulePragma xName xAttr exp1 exp2) = XmlPage (id l) (dePatBindModuleName moduleName) (fmap (dePatBindModulePragma) modulePragma) (dePatBindXName xName) (fmap (dePatBindXAttr) xAttr) (fmap (dePatBindExp) exp1) (fmap (dePatBindExp) exp2)
-dePatBindModule (XmlHybrid l moduleHead modulePragma importDecl decl xName xAttr exp1 exp2) = XmlHybrid (id l) (fmap (dePatBindModuleHead) moduleHead) (fmap (dePatBindModulePragma) modulePragma) (fmap (dePatBindImportDecl) importDecl) (fmap (dePatBindDecl) decl) (dePatBindXName xName) (fmap (dePatBindXAttr) xAttr) (fmap (dePatBindExp) exp1) (fmap (dePatBindExp) exp2)
+dePatBindModule (XmlHybrid l moduleHead modulePragma importDecl decl xName xAttr exp1 exp2) = XmlHybrid (id l) (fmap (dePatBindModuleHead) moduleHead) (fmap (dePatBindModulePragma) modulePragma) (fmap (dePatBindImportDecl) importDecl) (joinMap (dePatBindDecl) decl) (dePatBindXName xName) (fmap (dePatBindXAttr) xAttr) (fmap (dePatBindExp) exp1) (fmap (dePatBindExp) exp2)
 dePatBindModuleHead :: ModuleHead l -> ModuleHead l
 dePatBindModuleHead (ModuleHead l moduleName warningText exportSpecList) = ModuleHead (id l) (dePatBindModuleName moduleName) (fmap (dePatBindWarningText) warningText) (fmap (dePatBindExportSpecList) exportSpecList)
 dePatBindModuleName :: ModuleName l -> ModuleName l
@@ -337,7 +467,7 @@ dePatBindPatField (PFieldWildcard l) = PFieldWildcard (id l)
 dePatBindPatternSynDirection :: PatternSynDirection l -> PatternSynDirection l
 dePatBindPatternSynDirection (Unidirectional) = Unidirectional
 dePatBindPatternSynDirection (ImplicitBidirectional) = ImplicitBidirectional
-dePatBindPatternSynDirection (ExplicitBidirectional l decl) = ExplicitBidirectional (id l) (fmap (dePatBindDecl) decl)
+dePatBindPatternSynDirection (ExplicitBidirectional l decl) = ExplicitBidirectional (id l) (joinMap (dePatBindDecl) decl)
 dePatBindPromoted :: Promoted l -> Promoted l
 dePatBindPromoted (PromotedInteger l integer string) = PromotedInteger (id l) (id integer) (id string)
 dePatBindPromoted (PromotedString l string1 string2) = PromotedString (id l) (id string1) (id string2)
