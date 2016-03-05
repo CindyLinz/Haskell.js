@@ -352,6 +352,24 @@ genPreludeNative = "function lc_char_to_js_char(lc_char){\n\
 \  return out;\n\
 \}\n\
 \\n\
+\function tuple_con_gen(n){\n\
+\  var gen_app = function(i){\n\
+\    if(i>0){\n\
+\      return ['app', gen_app(i-1), ['var', 'x'+i]];\n\
+\    }else{\n\
+\      return ['var', 'f'];\n\
+\    }\n\
+\  };\n\
+\  var gen_lam = function(i){\n\
+\    if(i<=n){\n\
+\      return ['lam', 'x'+i, gen_lam(i+1)];\n\
+\    }else{\n\
+\      return ['lam', 'f', gen_app(n)];\n\
+\    }\n\
+\  };\n\
+\  return gen_lam(1);\n\
+\}\n\
+\\n\
 \env['Y#'] = {\n\
 \  expr: ['lam', 'f', ['app', ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]], ['lam', 'x', ['app', ['var', 'f'], ['app', ['var', 'x'], ['var', 'x']]]]]],\n\
 \  env: env\n\
