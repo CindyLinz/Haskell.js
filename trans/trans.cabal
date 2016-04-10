@@ -27,6 +27,8 @@ executable trans
                      , ScopedTypeVariables
                      , RankNTypes
                      , RecordWildCards
+                     , MultiParamTypeClasses
+                     , FlexibleInstances
   build-depends:       base >=4.7 && <4.9
                      , haskell-src-exts ==1.17.*
                      , containers ==0.5.*

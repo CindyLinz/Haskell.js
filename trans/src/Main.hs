@@ -11,6 +11,9 @@ import CollectData
 import SymbolTable
 import BasicTrans
 
+import Desugar
+import DesugarClass
+
 import Desugar.If
 import Desugar.Where
 import Desugar.CaseReorder
