@@ -9,24 +9,26 @@ import Data.Traversable
 
 import DesugarClass
 
-instance Monad m => Desugar m (Activation l) where
+import Desugar.If
+
+instance Monad m => Desugarable m (Activation l) where
   desugar (ActiveFrom l int) = return $ ActiveFrom (id l) (id int)
   desugar (ActiveUntil l int) = return $ ActiveUntil (id l) (id int)
 
-instance Monad m => Desugar m (Alt l) where
+instance Monad m => Desugarable m (Alt l) where
   desugar (Alt l pat rhs binds) = Alt (id l) <$> (desugar pat) <*> (desugar rhs) <*> sequence (fmap (desugar) binds)
 
-instance Monad m => Desugar m (Annotation l) where
+instance Monad m => Desugarable m (Annotation l) where
   desugar (Ann l name exp) = Ann (id l) <$> (desugar name) <*> (desugar exp)
   desugar (TypeAnn l name exp) = TypeAnn (id l) <$> (desugar name) <*> (desugar exp)
   desugar (ModuleAnn l exp) = ModuleAnn (id l) <$> (desugar exp)
 
-instance Monad m => Desugar m (Assoc l) where
+instance Monad m => Desugarable m (Assoc l) where
   desugar (AssocNone l) = return $ AssocNone (id l)
   desugar (AssocLeft l) = return $ AssocLeft (id l)
   desugar (AssocRight l) = return $ AssocRight (id l)
 
-instance Monad m => Desugar m (Asst l) where
+instance Monad m => Desugarable m (Asst l) where
   desugar (ClassA l qName type0) = ClassA (id l) <$> (desugar qName) <*> sequence (fmap (desugar) type0)
   desugar (AppA l name type0) = AppA (id l) <$> (desugar name) <*> sequence (fmap (desugar) type0)
   desugar (InfixA l type1 qName type2) = InfixA (id l) <$> (desugar type1) <*> (desugar qName) <*> (desugar type2)
@@ -35,35 +37,35 @@ instance Monad m => Desugar m (Asst l) where
   desugar (ParenA l asst) = ParenA (id l) <$> (desugar asst)
   desugar (WildCardA l name) = WildCardA (id l) <$> sequence (fmap (desugar) name)
 
-instance Monad m => Desugar m (BangType l) where
+instance Monad m => Desugarable m (BangType l) where
   desugar (BangedTy l) = return $ BangedTy (id l)
   desugar (UnpackedTy l) = return $ UnpackedTy (id l)
 
-instance Monad m => Desugar m (Binds l) where
+instance Monad m => Desugarable m (Binds l) where
   desugar (BDecls l decl) = BDecls (id l) <$> sequence (fmap (desugar) decl)
   desugar (IPBinds l iPBind) = IPBinds (id l) <$> sequence (fmap (desugar) iPBind)
 
-instance Monad m => Desugar m (BooleanFormula l) where
+instance Monad m => Desugarable m (BooleanFormula l) where
   desugar (VarFormula l name) = VarFormula (id l) <$> (desugar name)
   desugar (AndFormula l booleanFormula) = AndFormula (id l) <$> sequence (fmap (desugar) booleanFormula)
   desugar (OrFormula l booleanFormula) = OrFormula (id l) <$> sequence (fmap (desugar) booleanFormula)
   desugar (ParenFormula l booleanFormula) = ParenFormula (id l) <$> (desugar booleanFormula)
 
-instance Monad m => Desugar m (Boxed) where
+instance Monad m => Desugarable m (Boxed) where
   desugar (Boxed) = return $ Boxed
   desugar (Unboxed) = return $ Unboxed
 
-instance Monad m => Desugar m (Bracket l) where
+instance Monad m => Desugarable m (Bracket l) where
   desugar (ExpBracket l exp) = ExpBracket (id l) <$> (desugar exp)
   desugar (PatBracket l pat) = PatBracket (id l) <$> (desugar pat)
   desugar (TypeBracket l type0) = TypeBracket (id l) <$> (desugar type0)
   desugar (DeclBracket l decl) = DeclBracket (id l) <$> sequence (fmap (desugar) decl)
 
-instance Monad m => Desugar m (CName l) where
+instance Monad m => Desugarable m (CName l) where
   desugar (VarName l name) = VarName (id l) <$> (desugar name)
   desugar (ConName l name) = ConName (id l) <$> (desugar name)
 
-instance Monad m => Desugar m (CallConv l) where
+instance Monad m => Desugarable m (CallConv l) where
   desugar (StdCall l) = return $ StdCall (id l)
   desugar (CCall l) = return $ CCall (id l)
   desugar (CPlusPlus l) = return $ CPlusPlus (id l)
@@ -73,28 +75,28 @@ instance Monad m => Desugar m (CallConv l) where
   desugar (JavaScript l) = return $ JavaScript (id l)
   desugar (CApi l) = return $ CApi (id l)
 
-instance Monad m => Desugar m (ClassDecl l) where
+instance Monad m => Desugarable m (ClassDecl l) where
   desugar (ClsDecl l decl) = ClsDecl (id l) <$> (desugar decl)
   desugar (ClsDataFam l context declHead kind) = ClsDataFam (id l) <$> sequence (fmap (desugar) context) <*> (desugar declHead) <*> sequence (fmap (desugar) kind)
   desugar (ClsTyFam l declHead kind) = ClsTyFam (id l) <$> (desugar declHead) <*> sequence (fmap (desugar) kind)
   desugar (ClsTyDef l type1 type2) = ClsTyDef (id l) <$> (desugar type1) <*> (desugar type2)
   desugar (ClsDefSig l name type0) = ClsDefSig (id l) <$> (desugar name) <*> (desugar type0)
 
-instance Monad m => Desugar m (ConDecl l) where
+instance Monad m => Desugarable m (ConDecl l) where
   desugar (ConDecl l name type0) = ConDecl (id l) <$> (desugar name) <*> sequence (fmap (desugar) type0)
   desugar (InfixConDecl l type1 name type2) = InfixConDecl (id l) <$> (desugar type1) <*> (desugar name) <*> (desugar type2)
   desugar (RecDecl l name fieldDecl) = RecDecl (id l) <$> (desugar name) <*> sequence (fmap (desugar) fieldDecl)
 
-instance Monad m => Desugar m (Context l) where
+instance Monad m => Desugarable m (Context l) where
   desugar (CxSingle l asst) = CxSingle (id l) <$> (desugar asst)
   desugar (CxTuple l asst) = CxTuple (id l) <$> sequence (fmap (desugar) asst)
   desugar (CxEmpty l) = return $ CxEmpty (id l)
 
-instance Monad m => Desugar m (DataOrNew l) where
+instance Monad m => Desugarable m (DataOrNew l) where
   desugar (DataType l) = return $ DataType (id l)
   desugar (NewType l) = return $ NewType (id l)
 
-instance Monad m => Desugar m (Decl l) where
+instance Monad m => Desugarable m (Decl l) where
   desugar (TypeDecl l declHead type0) = TypeDecl (id l) <$> (desugar declHead) <*> (desugar type0)
   desugar (TypeFamDecl l declHead kind) = TypeFamDecl (id l) <$> (desugar declHead) <*> sequence (fmap (desugar) kind)
   desugar (ClosedTypeFamDecl l declHead kind typeEqn) = ClosedTypeFamDecl (id l) <$> (desugar declHead) <*> sequence (fmap (desugar) kind) <*> sequence (fmap (desugar) typeEqn)
@@ -129,16 +131,16 @@ instance Monad m => Desugar m (Decl l) where
   desugar (MinimalPragma l booleanFormula) = MinimalPragma (id l) <$> sequence (fmap (desugar) booleanFormula)
   desugar (RoleAnnotDecl l qName role) = RoleAnnotDecl (id l) <$> (desugar qName) <*> sequence (fmap (desugar) role)
 
-instance Monad m => Desugar m (DeclHead l) where
+instance Monad m => Desugarable m (DeclHead l) where
   desugar (DHead l name) = DHead (id l) <$> (desugar name)
   desugar (DHInfix l tyVarBind name) = DHInfix (id l) <$> (desugar tyVarBind) <*> (desugar name)
   desugar (DHParen l declHead) = DHParen (id l) <$> (desugar declHead)
   desugar (DHApp l declHead tyVarBind) = DHApp (id l) <$> (desugar declHead) <*> (desugar tyVarBind)
 
-instance Monad m => Desugar m (Deriving l) where
+instance Monad m => Desugarable m (Deriving l) where
   desugar (Deriving l instRule) = Deriving (id l) <$> sequence (fmap (desugar) instRule)
 
-instance Monad m => Desugar m (Exp l) where
+instance Monad m => Desugarable m (Exp l) where
   desugar (Var l qName) = Var (id l) <$> (desugar qName)
   desugar (IPVar l iPName) = IPVar (id l) <$> (desugar iPName)
   desugar (Con l qName) = Con (id l) <$> (desugar qName)
@@ -148,7 +150,7 @@ instance Monad m => Desugar m (Exp l) where
   desugar (NegApp l exp) = NegApp (id l) <$> (desugar exp)
   desugar (Lambda l pat exp) = Lambda (id l) <$> sequence (fmap (desugar) pat) <*> (desugar exp)
   desugar (Let l binds exp) = Let (id l) <$> (desugar binds) <*> (desugar exp)
-  desugar (If l exp1 exp2 exp3) = If (id l) <$> (desugar exp1) <*> (desugar exp2) <*> (desugar exp3)
+  desugar exp@(If l exp1 exp2 exp3) = desugar (deIfExp exp)
   desugar (MultiIf l guardedRhs) = MultiIf (id l) <$> sequence (fmap (desugar) guardedRhs)
   desugar (Case l exp alt) = Case (id l) <$> (desugar exp) <*> sequence (fmap (desugar) alt)
   desugar (Do l stmt) = Do (id l) <$> sequence (fmap (desugar) stmt)
@@ -193,69 +195,69 @@ instance Monad m => Desugar m (Exp l) where
   desugar (LCase l alt) = LCase (id l) <$> sequence (fmap (desugar) alt)
   desugar (ExprHole l) = return $ ExprHole (id l)
 
-instance Monad m => Desugar m (ExportSpec l) where
+instance Monad m => Desugarable m (ExportSpec l) where
   desugar (EVar l qName) = EVar (id l) <$> (desugar qName)
   desugar (EAbs l namespace qName) = EAbs (id l) <$> (desugar namespace) <*> (desugar qName)
   desugar (EThingAll l qName) = EThingAll (id l) <$> (desugar qName)
   desugar (EThingWith l qName cName) = EThingWith (id l) <$> (desugar qName) <*> sequence (fmap (desugar) cName)
   desugar (EModuleContents l moduleName) = EModuleContents (id l) <$> (desugar moduleName)
 
-instance Monad m => Desugar m (ExportSpecList l) where
+instance Monad m => Desugarable m (ExportSpecList l) where
   desugar (ExportSpecList l exportSpec) = ExportSpecList (id l) <$> sequence (fmap (desugar) exportSpec)
 
-instance Monad m => Desugar m (FieldDecl l) where
+instance Monad m => Desugarable m (FieldDecl l) where
   desugar (FieldDecl l name type0) = FieldDecl (id l) <$> sequence (fmap (desugar) name) <*> (desugar type0)
 
-instance Monad m => Desugar m (FieldUpdate l) where
+instance Monad m => Desugarable m (FieldUpdate l) where
   desugar (FieldUpdate l qName exp) = FieldUpdate (id l) <$> (desugar qName) <*> (desugar exp)
   desugar (FieldPun l qName) = FieldPun (id l) <$> (desugar qName)
   desugar (FieldWildcard l) = return $ FieldWildcard (id l)
 
-instance Monad m => Desugar m (FunDep l) where
+instance Monad m => Desugarable m (FunDep l) where
   desugar (FunDep l name1 name2) = FunDep (id l) <$> sequence (fmap (desugar) name1) <*> sequence (fmap (desugar) name2)
 
-instance Monad m => Desugar m (GadtDecl l) where
+instance Monad m => Desugarable m (GadtDecl l) where
   desugar (GadtDecl l name fieldDecl type0) = GadtDecl (id l) <$> (desugar name) <*> sequence (fmap (sequence . fmap (desugar)) fieldDecl) <*> (desugar type0)
 
-instance Monad m => Desugar m (GuardedRhs l) where
+instance Monad m => Desugarable m (GuardedRhs l) where
   desugar (GuardedRhs l stmt exp) = GuardedRhs (id l) <$> sequence (fmap (desugar) stmt) <*> (desugar exp)
 
-instance Monad m => Desugar m (IPBind l) where
+instance Monad m => Desugarable m (IPBind l) where
   desugar (IPBind l iPName exp) = IPBind (id l) <$> (desugar iPName) <*> (desugar exp)
 
-instance Monad m => Desugar m (IPName l) where
+instance Monad m => Desugarable m (IPName l) where
   desugar (IPDup l string) = return $ IPDup (id l) (id string)
   desugar (IPLin l string) = return $ IPLin (id l) (id string)
 
-instance Monad m => Desugar m (ImportDecl l) where
+instance Monad m => Desugarable m (ImportDecl l) where
   desugar (ImportDecl importAnn importModule importQualified importSrc importSafe importPkg importAs importSpecs) = ImportDecl (id importAnn) <$> (desugar importModule) <*> return (id importQualified) <*> return (id importSrc) <*> return (id importSafe) <*> return (fmap (id) importPkg) <*> sequence (fmap (desugar) importAs) <*> sequence (fmap (desugar) importSpecs)
 
-instance Monad m => Desugar m (ImportSpec l) where
+instance Monad m => Desugarable m (ImportSpec l) where
   desugar (IVar l name) = IVar (id l) <$> (desugar name)
   desugar (IAbs l namespace name) = IAbs (id l) <$> (desugar namespace) <*> (desugar name)
   desugar (IThingAll l name) = IThingAll (id l) <$> (desugar name)
   desugar (IThingWith l name cName) = IThingWith (id l) <$> (desugar name) <*> sequence (fmap (desugar) cName)
 
-instance Monad m => Desugar m (ImportSpecList l) where
+instance Monad m => Desugarable m (ImportSpecList l) where
   desugar (ImportSpecList l bool importSpec) = ImportSpecList (id l) (id bool) <$> sequence (fmap (desugar) importSpec)
 
-instance Monad m => Desugar m (InstDecl l) where
+instance Monad m => Desugarable m (InstDecl l) where
   desugar (InsDecl l decl) = InsDecl (id l) <$> (desugar decl)
   desugar (InsType l type1 type2) = InsType (id l) <$> (desugar type1) <*> (desugar type2)
   desugar (InsData l dataOrNew type0 qualConDecl deriving0) = InsData (id l) <$> (desugar dataOrNew) <*> (desugar type0) <*> sequence (fmap (desugar) qualConDecl) <*> sequence (fmap (desugar) deriving0)
   desugar (InsGData l dataOrNew type0 kind gadtDecl deriving0) = InsGData (id l) <$> (desugar dataOrNew) <*> (desugar type0) <*> sequence (fmap (desugar) kind) <*> sequence (fmap (desugar) gadtDecl) <*> sequence (fmap (desugar) deriving0)
 
-instance Monad m => Desugar m (InstHead l) where
+instance Monad m => Desugarable m (InstHead l) where
   desugar (IHCon l qName) = IHCon (id l) <$> (desugar qName)
   desugar (IHInfix l type0 qName) = IHInfix (id l) <$> (desugar type0) <*> (desugar qName)
   desugar (IHParen l instHead) = IHParen (id l) <$> (desugar instHead)
   desugar (IHApp l instHead type0) = IHApp (id l) <$> (desugar instHead) <*> (desugar type0)
 
-instance Monad m => Desugar m (InstRule l) where
+instance Monad m => Desugarable m (InstRule l) where
   desugar (IRule l tyVarBind context instHead) = IRule (id l) <$> sequence (fmap (sequence . fmap (desugar)) tyVarBind) <*> sequence (fmap (desugar) context) <*> (desugar instHead)
   desugar (IParen l instRule) = IParen (id l) <$> (desugar instRule)
 
-instance Monad m => Desugar m (Kind l) where
+instance Monad m => Desugarable m (Kind l) where
   desugar (KindStar l) = return $ KindStar (id l)
   desugar (KindFn l kind1 kind2) = KindFn (id l) <$> (desugar kind1) <*> (desugar kind2)
   desugar (KindParen l kind) = KindParen (id l) <$> (desugar kind)
@@ -264,7 +266,7 @@ instance Monad m => Desugar m (Kind l) where
   desugar (KindTuple l kind) = KindTuple (id l) <$> sequence (fmap (desugar) kind)
   desugar (KindList l kind) = KindList (id l) <$> (desugar kind)
 
-instance Monad m => Desugar m (Literal l) where
+instance Monad m => Desugarable m (Literal l) where
   desugar (Char l char string) = return $ Char (id l) (id char) (id string)
   desugar (String l string1 string2) = return $ String (id l) (id string1) (id string2)
   desugar (Int l integer string) = return $ Int (id l) (id integer) (id string)
@@ -276,48 +278,48 @@ instance Monad m => Desugar m (Literal l) where
   desugar (PrimChar l char string) = return $ PrimChar (id l) (id char) (id string)
   desugar (PrimString l string1 string2) = return $ PrimString (id l) (id string1) (id string2)
 
-instance Monad m => Desugar m (Match l) where
+instance Monad m => Desugarable m (Match l) where
   desugar (Match l name pat rhs binds) = Match (id l) <$> (desugar name) <*> sequence (fmap (desugar) pat) <*> (desugar rhs) <*> sequence (fmap (desugar) binds)
   desugar (InfixMatch l pat1 name pat2 rhs binds) = InfixMatch (id l) <$> (desugar pat1) <*> (desugar name) <*> sequence (fmap (desugar) pat2) <*> (desugar rhs) <*> sequence (fmap (desugar) binds)
 
-instance Monad m => Desugar m (Module l) where
+instance Monad m => Desugarable m (Module l) where
   desugar (Module l moduleHead modulePragma importDecl decl) = Module (id l) <$> sequence (fmap (desugar) moduleHead) <*> sequence (fmap (desugar) modulePragma) <*> sequence (fmap (desugar) importDecl) <*> sequence (fmap (desugar) decl)
   desugar (XmlPage l moduleName modulePragma xName xAttr exp1 exp2) = XmlPage (id l) <$> (desugar moduleName) <*> sequence (fmap (desugar) modulePragma) <*> (desugar xName) <*> sequence (fmap (desugar) xAttr) <*> sequence (fmap (desugar) exp1) <*> sequence (fmap (desugar) exp2)
   desugar (XmlHybrid l moduleHead modulePragma importDecl decl xName xAttr exp1 exp2) = XmlHybrid (id l) <$> sequence (fmap (desugar) moduleHead) <*> sequence (fmap (desugar) modulePragma) <*> sequence (fmap (desugar) importDecl) <*> sequence (fmap (desugar) decl) <*> (desugar xName) <*> sequence (fmap (desugar) xAttr) <*> sequence (fmap (desugar) exp1) <*> sequence (fmap (desugar) exp2)
 
-instance Monad m => Desugar m (ModuleHead l) where
+instance Monad m => Desugarable m (ModuleHead l) where
   desugar (ModuleHead l moduleName warningText exportSpecList) = ModuleHead (id l) <$> (desugar moduleName) <*> sequence (fmap (desugar) warningText) <*> sequence (fmap (desugar) exportSpecList)
 
-instance Monad m => Desugar m (ModuleName l) where
+instance Monad m => Desugarable m (ModuleName l) where
   desugar (ModuleName l string) = return $ ModuleName (id l) (id string)
 
-instance Monad m => Desugar m (ModulePragma l) where
+instance Monad m => Desugarable m (ModulePragma l) where
   desugar (LanguagePragma l name) = LanguagePragma (id l) <$> sequence (fmap (desugar) name)
   desugar (OptionsPragma l tool string) = OptionsPragma (id l) <$> sequence (fmap (desugar) tool) <*> return (id string)
   desugar (AnnModulePragma l annotation) = AnnModulePragma (id l) <$> (desugar annotation)
 
-instance Monad m => Desugar m (Name l) where
+instance Monad m => Desugarable m (Name l) where
   desugar (Ident l string) = return $ Ident (id l) (id string)
   desugar (Symbol l string) = return $ Symbol (id l) (id string)
 
-instance Monad m => Desugar m (Namespace l) where
+instance Monad m => Desugarable m (Namespace l) where
   desugar (NoNamespace l) = return $ NoNamespace (id l)
   desugar (TypeNamespace l) = return $ TypeNamespace (id l)
   desugar (PatternNamespace l) = return $ PatternNamespace (id l)
 
-instance Monad m => Desugar m (Op l) where
+instance Monad m => Desugarable m (Op l) where
   desugar (VarOp l name) = VarOp (id l) <$> (desugar name)
   desugar (ConOp l name) = ConOp (id l) <$> (desugar name)
 
-instance Monad m => Desugar m (Overlap l) where
+instance Monad m => Desugarable m (Overlap l) where
   desugar (NoOverlap l) = return $ NoOverlap (id l)
   desugar (Overlap l) = return $ Overlap (id l)
   desugar (Incoherent l) = return $ Incoherent (id l)
 
-instance Monad m => Desugar m (PXAttr l) where
+instance Monad m => Desugarable m (PXAttr l) where
   desugar (PXAttr l xName pat) = PXAttr (id l) <$> (desugar xName) <*> (desugar pat)
 
-instance Monad m => Desugar m (Pat l) where
+instance Monad m => Desugarable m (Pat l) where
   desugar (PVar l name) = PVar (id l) <$> (desugar name)
   desugar (PLit l sign literal) = PLit (id l) <$> (desugar sign) <*> (desugar literal)
   desugar (PNPlusK l name integer) = PNPlusK (id l) <$> (desugar name) <*> return (id integer)
@@ -341,17 +343,17 @@ instance Monad m => Desugar m (Pat l) where
   desugar (PQuasiQuote l string1 string2) = return $ PQuasiQuote (id l) (id string1) (id string2)
   desugar (PBangPat l pat) = PBangPat (id l) <$> (desugar pat)
 
-instance Monad m => Desugar m (PatField l) where
+instance Monad m => Desugarable m (PatField l) where
   desugar (PFieldPat l qName pat) = PFieldPat (id l) <$> (desugar qName) <*> (desugar pat)
   desugar (PFieldPun l qName) = PFieldPun (id l) <$> (desugar qName)
   desugar (PFieldWildcard l) = return $ PFieldWildcard (id l)
 
-instance Monad m => Desugar m (PatternSynDirection l) where
+instance Monad m => Desugarable m (PatternSynDirection l) where
   desugar (Unidirectional) = return $ Unidirectional
   desugar (ImplicitBidirectional) = return $ ImplicitBidirectional
   desugar (ExplicitBidirectional l decl) = ExplicitBidirectional (id l) <$> sequence (fmap (desugar) decl)
 
-instance Monad m => Desugar m (Promoted l) where
+instance Monad m => Desugarable m (Promoted l) where
   desugar (PromotedInteger l integer string) = return $ PromotedInteger (id l) (id integer) (id string)
   desugar (PromotedString l string1 string2) = return $ PromotedString (id l) (id string1) (id string2)
   desugar (PromotedCon l bool qName) = PromotedCon (id l) (id bool) <$> (desugar qName)
@@ -359,19 +361,19 @@ instance Monad m => Desugar m (Promoted l) where
   desugar (PromotedTuple l type0) = PromotedTuple (id l) <$> sequence (fmap (desugar) type0)
   desugar (PromotedUnit l) = return $ PromotedUnit (id l)
 
-instance Monad m => Desugar m (QName l) where
+instance Monad m => Desugarable m (QName l) where
   desugar (Qual l moduleName name) = Qual (id l) <$> (desugar moduleName) <*> (desugar name)
   desugar (UnQual l name) = UnQual (id l) <$> (desugar name)
   desugar (Special l specialCon) = Special (id l) <$> (desugar specialCon)
 
-instance Monad m => Desugar m (QOp l) where
+instance Monad m => Desugarable m (QOp l) where
   desugar (QVarOp l qName) = QVarOp (id l) <$> (desugar qName)
   desugar (QConOp l qName) = QConOp (id l) <$> (desugar qName)
 
-instance Monad m => Desugar m (QualConDecl l) where
+instance Monad m => Desugarable m (QualConDecl l) where
   desugar (QualConDecl l tyVarBind context conDecl) = QualConDecl (id l) <$> sequence (fmap (sequence . fmap (desugar)) tyVarBind) <*> sequence (fmap (desugar) context) <*> (desugar conDecl)
 
-instance Monad m => Desugar m (QualStmt l) where
+instance Monad m => Desugarable m (QualStmt l) where
   desugar (QualStmt l stmt) = QualStmt (id l) <$> (desugar stmt)
   desugar (ThenTrans l exp) = ThenTrans (id l) <$> (desugar exp)
   desugar (ThenBy l exp1 exp2) = ThenBy (id l) <$> (desugar exp1) <*> (desugar exp2)
@@ -379,7 +381,7 @@ instance Monad m => Desugar m (QualStmt l) where
   desugar (GroupUsing l exp) = GroupUsing (id l) <$> (desugar exp)
   desugar (GroupByUsing l exp1 exp2) = GroupByUsing (id l) <$> (desugar exp1) <*> (desugar exp2)
 
-instance Monad m => Desugar m (RPat l) where
+instance Monad m => Desugarable m (RPat l) where
   desugar (RPOp l rPat rPatOp) = RPOp (id l) <$> (desugar rPat) <*> (desugar rPatOp)
   desugar (RPEither l rPat1 rPat2) = RPEither (id l) <$> (desugar rPat1) <*> (desugar rPat2)
   desugar (RPSeq l rPat) = RPSeq (id l) <$> sequence (fmap (desugar) rPat)
@@ -389,7 +391,7 @@ instance Monad m => Desugar m (RPat l) where
   desugar (RPParen l rPat) = RPParen (id l) <$> (desugar rPat)
   desugar (RPPat l pat) = RPPat (id l) <$> (desugar pat)
 
-instance Monad m => Desugar m (RPatOp l) where
+instance Monad m => Desugarable m (RPatOp l) where
   desugar (RPStar l) = return $ RPStar (id l)
   desugar (RPStarG l) = return $ RPStarG (id l)
   desugar (RPPlus l) = return $ RPPlus (id l)
@@ -397,33 +399,33 @@ instance Monad m => Desugar m (RPatOp l) where
   desugar (RPOpt l) = return $ RPOpt (id l)
   desugar (RPOptG l) = return $ RPOptG (id l)
 
-instance Monad m => Desugar m (Rhs l) where
+instance Monad m => Desugarable m (Rhs l) where
   desugar (UnGuardedRhs l exp) = UnGuardedRhs (id l) <$> (desugar exp)
   desugar (GuardedRhss l guardedRhs) = GuardedRhss (id l) <$> sequence (fmap (desugar) guardedRhs)
 
-instance Monad m => Desugar m (Role l) where
+instance Monad m => Desugarable m (Role l) where
   desugar (Nominal l) = return $ Nominal (id l)
   desugar (Representational l) = return $ Representational (id l)
   desugar (Phantom l) = return $ Phantom (id l)
   desugar (RoleWildcard l) = return $ RoleWildcard (id l)
 
-instance Monad m => Desugar m (Rule l) where
+instance Monad m => Desugarable m (Rule l) where
   desugar (Rule l string activation ruleVar exp1 exp2) = Rule (id l) (id string) <$> sequence (fmap (desugar) activation) <*> sequence (fmap (sequence . fmap (desugar)) ruleVar) <*> (desugar exp1) <*> (desugar exp2)
 
-instance Monad m => Desugar m (RuleVar l) where
+instance Monad m => Desugarable m (RuleVar l) where
   desugar (RuleVar l name) = RuleVar (id l) <$> (desugar name)
   desugar (TypedRuleVar l name type0) = TypedRuleVar (id l) <$> (desugar name) <*> (desugar type0)
 
-instance Monad m => Desugar m (Safety l) where
+instance Monad m => Desugarable m (Safety l) where
   desugar (PlayRisky l) = return $ PlayRisky (id l)
   desugar (PlaySafe l bool) = return $ PlaySafe (id l) (id bool)
   desugar (PlayInterruptible l) = return $ PlayInterruptible (id l)
 
-instance Monad m => Desugar m (Sign l) where
+instance Monad m => Desugarable m (Sign l) where
   desugar (Signless l) = return $ Signless (id l)
   desugar (Negative l) = return $ Negative (id l)
 
-instance Monad m => Desugar m (SpecialCon l) where
+instance Monad m => Desugarable m (SpecialCon l) where
   desugar (UnitCon l) = return $ UnitCon (id l)
   desugar (ListCon l) = return $ ListCon (id l)
   desugar (FunCon l) = return $ FunCon (id l)
@@ -431,17 +433,17 @@ instance Monad m => Desugar m (SpecialCon l) where
   desugar (Cons l) = return $ Cons (id l)
   desugar (UnboxedSingleCon l) = return $ UnboxedSingleCon (id l)
 
-instance Monad m => Desugar m (Splice l) where
+instance Monad m => Desugarable m (Splice l) where
   desugar (IdSplice l string) = return $ IdSplice (id l) (id string)
   desugar (ParenSplice l exp) = ParenSplice (id l) <$> (desugar exp)
 
-instance Monad m => Desugar m (Stmt l) where
+instance Monad m => Desugarable m (Stmt l) where
   desugar (Generator l pat exp) = Generator (id l) <$> (desugar pat) <*> (desugar exp)
   desugar (Qualifier l exp) = Qualifier (id l) <$> (desugar exp)
   desugar (LetStmt l binds) = LetStmt (id l) <$> (desugar binds)
   desugar (RecStmt l stmt) = RecStmt (id l) <$> sequence (fmap (desugar) stmt)
 
-instance Monad m => Desugar m (Tool) where
+instance Monad m => Desugarable m (Tool) where
   desugar (GHC) = return $ GHC
   desugar (HUGS) = return $ HUGS
   desugar (NHC98) = return $ NHC98
@@ -449,11 +451,11 @@ instance Monad m => Desugar m (Tool) where
   desugar (HADDOCK) = return $ HADDOCK
   desugar (UnknownTool string) = return $ UnknownTool (id string)
 
-instance Monad m => Desugar m (TyVarBind l) where
+instance Monad m => Desugarable m (TyVarBind l) where
   desugar (KindedVar l name kind) = KindedVar (id l) <$> (desugar name) <*> (desugar kind)
   desugar (UnkindedVar l name) = UnkindedVar (id l) <$> (desugar name)
 
-instance Monad m => Desugar m (Type l) where
+instance Monad m => Desugarable m (Type l) where
   desugar (TyForall l tyVarBind context type0) = TyForall (id l) <$> sequence (fmap (sequence . fmap (desugar)) tyVarBind) <*> sequence (fmap (desugar) context) <*> (desugar type0)
   desugar (TyFun l type1 type2) = TyFun (id l) <$> (desugar type1) <*> (desugar type2)
   desugar (TyTuple l boxed type0) = TyTuple (id l) <$> (desugar boxed) <*> sequence (fmap (desugar) type0)
@@ -471,17 +473,17 @@ instance Monad m => Desugar m (Type l) where
   desugar (TyBang l bangType type0) = TyBang (id l) <$> (desugar bangType) <*> (desugar type0)
   desugar (TyWildCard l name) = TyWildCard (id l) <$> sequence (fmap (desugar) name)
 
-instance Monad m => Desugar m (TypeEqn l) where
+instance Monad m => Desugarable m (TypeEqn l) where
   desugar (TypeEqn l type1 type2) = TypeEqn (id l) <$> (desugar type1) <*> (desugar type2)
 
-instance Monad m => Desugar m (WarningText l) where
+instance Monad m => Desugarable m (WarningText l) where
   desugar (DeprText l string) = return $ DeprText (id l) (id string)
   desugar (WarnText l string) = return $ WarnText (id l) (id string)
 
-instance Monad m => Desugar m (XAttr l) where
+instance Monad m => Desugarable m (XAttr l) where
   desugar (XAttr l xName exp) = XAttr (id l) <$> (desugar xName) <*> (desugar exp)
 
-instance Monad m => Desugar m (XName l) where
+instance Monad m => Desugarable m (XName l) where
   desugar (XName l string) = return $ XName (id l) (id string)
   desugar (XDomName l string1 string2) = return $ XDomName (id l) (id string1) (id string2)
 
