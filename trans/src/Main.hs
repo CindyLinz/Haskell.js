@@ -14,7 +14,6 @@ import BasicTrans
 import Desugar
 import DesugarClass
 
-import Desugar.If
 import Desugar.Where
 import Desugar.CaseReorder
 import Desugar.String
@@ -123,7 +122,7 @@ myParseMode filename = ParseMode
 
 desugarModule dataConSymTable =
   deCaseReorderModule dataConSymTable .
-  deIfModule .
+  -- deIfModule .
   deTupleModule .
   deListModule .
   deStringModule .
@@ -172,8 +171,10 @@ main = do
 
               exportedAllData = exportedPreludeData <> exportedMainData
 
-              desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
-              desugarredMain = desugarModule (queryDataCon' (dataConToShape exportedAllData) (dataConToShape mainData) (modName mod) (importPrelude : modImport mod)) mod
+              --desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
+              desugarredPrelude = snd $ unDesugar (desugar preludeMod) initDesugarState
+              --desugarredMain = desugarModule (queryDataCon' (dataConToShape exportedAllData) (dataConToShape mainData) (modName mod) (importPrelude : modImport mod)) mod
+              desugarredMain = snd $ unDesugar (desugar mod) initDesugarState
             in
               {-
               show preludeData ++
