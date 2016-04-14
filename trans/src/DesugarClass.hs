@@ -11,20 +11,27 @@ initDesugarState :: DesugarState
 initDesugarState = DesugarState ()
 
 instance Functor Desugar where
-  fmap f (Desugar k) = Desugar $ \s ->
-    let
-      (s', a) = k s
-    in
-      (s', f a)
+  fmap f a = do
+    a' <- a
+    return $ f a'
+--   fmap f (Desugar k) = Desugar $ \s ->
+--     let
+--       (s', a) = k s
+--     in
+--       (s', f a)
 
 instance Applicative Desugar where
   pure a = Desugar $ \s -> (s, a)
-  Desugar fGen <*> Desugar aGen = Desugar $ \s ->
-    let
-      (s', f) = fGen s
-      (s'', a) = aGen s'
-    in
-      (s'', f a)
+  f <*> a = do
+    f' <- f
+    a' <- a
+    return $ f' a'
+--   Desugar fGen <*> Desugar aGen = Desugar $ \s ->
+--     let
+--       (s', f) = fGen s
+--       (s'', a) = aGen s'
+--     in
+--       (s'', f a)
 
 instance Monad Desugar where
   Desugar m >>= fGen = Desugar $ \s ->
