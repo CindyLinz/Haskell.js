@@ -4,6 +4,9 @@ import Control.Arrow ((***))
 
 import DesugarClass
 
+deX :: (Monad Desugar, Desugarable Desugar (Exp l)) => Exp l -> Desugar (Exp l)
+deX e = desugar e
+
 deIfExp :: Exp l -> Exp l
 deIfExp (If l exp1 exp2 exp3) =
   Case l exp1

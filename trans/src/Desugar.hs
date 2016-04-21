@@ -11,6 +11,37 @@ import DesugarClass
 
 import Desugar.If
 
+instance Functor Desugar where
+  fmap f a = do
+    a' <- a
+    return $ f a'
+--   fmap f (Desugar k) = Desugar $ \s ->
+--     let
+--       (s', a) = k s
+--     in
+--       (s', f a)
+
+instance Applicative Desugar where
+  pure a = Desugar $ \s -> (s, a)
+  f <*> a = do
+    f' <- f
+    a' <- a
+    return $ f' a'
+--   Desugar fGen <*> Desugar aGen = Desugar $ \s ->
+--     let
+--       (s', f) = fGen s
+--       (s'', a) = aGen s'
+--     in
+--       (s'', f a)
+
+instance Monad Desugar where
+  Desugar m >>= fGen = Desugar $ \s ->
+    let
+      (s', a) = m s
+      Desugar f = fGen a
+    in
+      f s'
+
 instance Monad m => Desugarable m (Activation l) where
   desugar (ActiveFrom l int) = return $ ActiveFrom (id l) (id int)
   desugar (ActiveUntil l int) = return $ ActiveUntil (id l) (id int)
