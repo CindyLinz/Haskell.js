@@ -5,6 +5,7 @@ import Language.Haskell.Exts.Annotated
 import Data.Monoid
 
 import Opt
+import Parse
 
 import RuntimeSource
 import CollectData
@@ -153,34 +154,42 @@ importPrelude = ImportDecl
 
 main = do
   Options{..} <- getOpts
-  interact $ \inputStr ->
-    case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
-      ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
-      ParseOk mod ->
-        case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
-          ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
-          ParseOk preludeMod ->
-            let
-              preludeData = collectData preludeMod
-              exportedPreludeData = exportData (modName preludeMod) (modExport preludeMod) preludeData
+  inputStr <- getContents
+  res <- getAllModules inputStr
+  case res of
+    ParseOk allMods ->
+      prettyPrintAllModules allMods
+    ParseFailed loc msg ->
+      putStrLn $ msg ++ " at " ++ show loc
 
-              mainData = collectData mod
-              exportedMainData = exportData (modName mod) (modExport mod) mainData
-
-              exportedAllData = exportedPreludeData <> exportedMainData
-
-              desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
-              desugarredMain = desugarModule (queryDataCon' (dataConToShape exportedAllData) (dataConToShape mainData) (modName mod) (importPrelude : modImport mod)) mod
-            in
-              {-
-              show preludeData ++
-              "\n\n" ++
-              show mainData ++
-              "\n\n" ++
-              show allData ++
-              "\n\n" ++
-              -}
-              if optDesugar then
-                prettyPrint desugarredMain ++ "\n"
-              else
-                genInit ++ genPreludeNative ++ transModule desugarredPrelude ++ transModule desugarredMain ++ genRun
+--  interact $ \inputStr ->
+--    case parseModuleWithMode (myParseMode "mySource.hs") inputStr of
+--      ParseFailed loc msg -> "parse failed at " ++ show loc ++ ": " ++ msg
+--      ParseOk mod ->
+--        case parseModuleWithMode (myParseMode "Prelude.hs") srcPrelude of
+--          ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
+--          ParseOk preludeMod ->
+--            let
+--              preludeData = collectData preludeMod
+--              exportedPreludeData = exportData (modName preludeMod) (modExport preludeMod) preludeData
+--
+--              mainData = collectData mod
+--              exportedMainData = exportData (modName mod) (modExport mod) mainData
+--
+--              exportedAllData = exportedPreludeData <> exportedMainData
+--
+--              desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
+--              desugarredMain = desugarModule (queryDataCon' (dataConToShape exportedAllData) (dataConToShape mainData) (modName mod) (importPrelude : modImport mod)) mod
+--            in
+--              {-
+--              show preludeData ++
+--              "\n\n" ++
+--              show mainData ++
+--              "\n\n" ++
+--              show allData ++
+--              "\n\n" ++
+--              -}
+--              if optDesugar then
+--                prettyPrint desugarredMain ++ "\n"
+--              else
+--                genInit ++ genPreludeNative ++ transModule desugarredPrelude ++ transModule desugarredMain ++ genRun
