@@ -12,7 +12,9 @@ import CollectData
 import SymbolTable
 import BasicTrans
 
-import Desugar.If
+import Desugar
+import DesugarClass
+
 import Desugar.Where
 import Desugar.CaseReorder
 import Desugar.String
@@ -121,7 +123,6 @@ myParseMode filename = ParseMode
 
 desugarModule dataConSymTable =
   deCaseReorderModule dataConSymTable .
-  deIfModule .
   deTupleModule .
   deListModule .
   deStringModule .
@@ -158,7 +159,7 @@ main = do
   res <- getAllModules inputStr
   case res of
     ParseOk allMods ->
-      prettyPrintAllModules allMods
+      prettyPrintAllModules (fmap (\mod -> snd (unDesugar (desugar mod) initDesugarState)) allMods)
     ParseFailed loc msg ->
       putStrLn $ msg ++ " at " ++ show loc
 
