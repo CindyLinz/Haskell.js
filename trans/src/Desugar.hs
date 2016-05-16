@@ -11,6 +11,8 @@ import DesugarClass
 
 import Desugar.If
 
+import Desugar.Infix
+
 instance Functor Desugar where
   fmap f a = do
     a' <- a
@@ -73,8 +75,11 @@ instance Monad m => Desugarable m (BangType l) where
   desugar (UnpackedTy l) = return $ UnpackedTy (id l)
 
 instance Monad m => Desugarable m (Binds l) where
-  desugar (BDecls l decl) = BDecls (id l) <$> sequence (fmap (desugar) decl)
-  desugar (IPBinds l iPBind) = IPBinds (id l) <$> sequence (fmap (desugar) iPBind)
+  desugar binds = do
+    binds' <- deInfixBinds binds
+    case binds' of
+      BDecls l decl -> BDecls (id l) <$> sequence (fmap (desugar) decl)
+      IPBinds l iPBind -> IPBinds (id l) <$> sequence (fmap (desugar) iPBind)
 
 instance Monad m => Desugarable m (BooleanFormula l) where
   desugar (VarFormula l name) = VarFormula (id l) <$> (desugar name)
