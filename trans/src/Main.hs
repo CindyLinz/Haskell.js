@@ -7,20 +7,21 @@ import Data.Monoid
 import Opt
 
 import RuntimeSource
-import CollectData
-import SymbolTable
+--import CollectData
+--import SymbolTable
 import BasicTrans
 
 import Desugar
 import DesugarClass
+import SymbolTable
 
-import Desugar.Where
-import Desugar.CaseReorder
-import Desugar.String
-import Desugar.List
-import Desugar.Tuple
-import Desugar.LambdaCase
-import Desugar.PatBind
+--import Desugar.Where
+--import Desugar.CaseReorder
+--import Desugar.String
+--import Desugar.List
+--import Desugar.Tuple
+--import Desugar.LambdaCase
+--import Desugar.PatBind
 
 myParseMode filename = ParseMode
   { parseFilename = filename
@@ -120,15 +121,15 @@ myParseMode filename = ParseMode
 --
 --    _ -> M.empty
 
-desugarModule dataConSymTable =
-  deCaseReorderModule dataConSymTable .
-  -- deIfModule .
-  deTupleModule .
-  deListModule .
-  deStringModule .
-  deLambdaCaseModule .
-  dePatBindModule .
-  deWhereModule
+--desugarModule dataConSymTable =
+--  deCaseReorderModule dataConSymTable .
+--  -- deIfModule .
+--  deTupleModule .
+--  deListModule .
+--  deStringModule .
+--  deLambdaCaseModule .
+--  dePatBindModule .
+--  deWhereModule
 
 modName :: Module l -> ModuleName l
 modName (Module l Nothing _ _ _) = ModuleName l "Main"
@@ -163,13 +164,13 @@ main = do
           ParseFailed loc msg -> "parse Prelude failed at " ++ show loc ++ ": " ++ msg
           ParseOk preludeMod ->
             let
-              preludeData = collectData preludeMod
-              exportedPreludeData = exportData (modName preludeMod) (modExport preludeMod) preludeData
+              --preludeData = collectData preludeMod
+              --exportedPreludeData = exportData (modName preludeMod) (modExport preludeMod) preludeData
 
-              mainData = collectData mod
-              exportedMainData = exportData (modName mod) (modExport mod) mainData
+              --mainData = collectData mod
+              --exportedMainData = exportData (modName mod) (modExport mod) mainData
 
-              exportedAllData = exportedPreludeData <> exportedMainData
+              --exportedAllData = exportedPreludeData <> exportedMainData
 
               --desugarredPrelude = desugarModule (queryDataCon' mempty (dataConToShape preludeData) (modName preludeMod) []) preludeMod
               desugarredPrelude = snd $ unDesugar (desugar preludeMod) initDesugarState

@@ -1,15 +1,18 @@
 module DesugarClass where
 
-import SymbolTable
+import SymbolTableData
 
 class Monad m => Desugarable m a where
   desugar :: a -> m a
 
 data Desugar a = Desugar {unDesugar :: DesugarState -> (DesugarState, a)}
 data DesugarState = DesugarState
-  { dsgstValueSymbol :: ()
-  , dsgstTypeSymbol :: ()
+  { dsgstValueSymbolTable :: SymbolTable
+  , dsgstPatternSymbolTable :: SymbolTable
   }
 initDesugarState :: DesugarState
-initDesugarState = DesugarState () ()
+initDesugarState = DesugarState
+  { dsgstValueSymbolTable = emptySymbolTable
+  , dsgstPatternSymbolTable = emptySymbolTable
+  }
 
