@@ -23,18 +23,15 @@ lookupSymbolTable symt Nothing name = localQuery (symtLocal symt) where
     others -> others
 
 addSymbolTableLayer :: SymbolTable -> SymbolTable
-addSymbolTableLayer symt = symt
-  {symtLocal = emptySymbolTableLayer : symtLocal symt}
-
-addLocalSymbolToLayer :: SymbolProperty -> SymbolTableLayer -> SymbolTableLayer
-addLocalSymbolToLayer prop syml = undefined
-
-addLocalSymbolToTable :: SymbolProperty -> SymbolTable -> SymbolTable
-addLocalSymbolToTable = undefined
---addLocalSymbolToTable prop symt = symt {symtLocal = head (symtLocal symt)
+addSymbolTableLayer symt = symt & symtLocalL %~ (emptySymbolTableLayer :)
 
 addLocalSymbol :: SymbolProperty -> SymbolTable -> SymbolTable
-addLocalSymbol = addLocalSymbolToTable
+addLocalSymbol prop symt = symt & symtLocalL . ix 0 %~ M.insertWith amend name (SymbolQuerySuccess prop) where
+  name = case sympName prop of
+    Ident _ name -> name
+    Symbol _ name -> name
+  amend _ (SymbolQuerySuccess old) = SymbolQueryDup (map (ann . sympName) [prop, old])
+  amend _ (SymbolQueryDup dups) = SymbolQueryDup (ann (sympName prop) : dups)
 
 importSymbols :: ImportDecl l -> SymbolTable -> SymbolTable -> SymbolTable
 importSymbols = undefined

@@ -2,14 +2,15 @@ module SymbolTableData where
 
 import qualified Data.Map.Strict as M
 import Lens.Micro.Type
+import Data.Functor
 
 import Language.Haskell.Exts.Annotated.Syntax
 import Language.Haskell.Exts.Pretty
 import Language.Haskell.Exts.SrcLoc
 
 data SymbolProperty = SymbolProperty
-  { sympName :: !(QName SrcSpan)
-  , sympPrio :: {-# UNPACKED #-} !Int -- infix operator priority
+  { sympName :: !(Name SrcSpan)
+  , sympPrio :: {-# UNPACK #-} !Int -- infix operator priority
   , sympAssoc :: !(Assoc SrcSpan)
   }
 
@@ -32,4 +33,6 @@ emptySymbolTable = SymbolTable
   , symtLocal = []
   }
 symtExternalL :: Lens' SymbolTable (M.Map String SymbolTableLayer)
-symtExternalL 
+symtExternalL f symt = (\a -> symt {symtExternal = a}) <$> f (symtExternal symt)
+symtLocalL :: Lens' SymbolTable [SymbolTableLayer]
+symtLocalL f symt = (\a -> symt {symtLocal = a}) <$> f (symtLocal symt)
