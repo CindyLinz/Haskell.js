@@ -19,12 +19,12 @@ data SymbolQueryResult
   | SymbolQueryDup [SrcSpan]
   | SymbolQueryNotFound
 
-type SymbolTableLayer = M.Map String SymbolQueryResult
+type SymbolTableLayer = M.Map (Name ()) SymbolQueryResult
 emptySymbolTableLayer :: SymbolTableLayer
 emptySymbolTableLayer = M.empty
 
 data SymbolTable = SymbolTable
-  { symtExternal :: M.Map String SymbolTableLayer
+  { symtExternal :: M.Map (ModuleName ()) SymbolTableLayer
   , symtLocal :: [SymbolTableLayer]
   }
 emptySymbolTable :: SymbolTable
@@ -32,7 +32,11 @@ emptySymbolTable = SymbolTable
   { symtExternal = M.empty
   , symtLocal = []
   }
-symtExternalL :: Lens' SymbolTable (M.Map String SymbolTableLayer)
+symtExternalL :: Lens' SymbolTable (M.Map (ModuleName ()) SymbolTableLayer)
 symtExternalL f symt = (\a -> symt {symtExternal = a}) <$> f (symtExternal symt)
 symtLocalL :: Lens' SymbolTable [SymbolTableLayer]
 symtLocalL f symt = (\a -> symt {symtLocal = a}) <$> f (symtLocal symt)
+
+type GlobalSymbolTableSet = M.Map (ModuleName ()) SymbolTableLayer
+type ModuleReexport = M.Map (ModuleName ()) [ModuleName ()]
+
